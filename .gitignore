@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.vscode/
+freebox_token.json
+npm-debug.log*

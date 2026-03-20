@@ -177,8 +177,8 @@ Claude Desktop
      │ MCP (stdio)
      ▼
 freebox-mcp (Node.js)
-  ├── src/index.ts         # Serveur MCP + définition des 29 outils
-  └── src/freeboxClient.ts # Client API Freebox (auth HMAC-SHA1 + endpoints)
+  ├── index.ts         # Serveur MCP + définition des 29 outils
+  └── freeboxClient.ts # Client API Freebox (auth HMAC-SHA1 + endpoints)
      │
      │ HTTP (réseau local uniquement)
      ▼

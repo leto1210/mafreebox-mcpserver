@@ -5,7 +5,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-COPY src/ ./src/
+COPY *.ts ./
 COPY tsconfig.json ./
 RUN npm run build
 
