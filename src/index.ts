@@ -8,6 +8,7 @@
  * Variables d'environnement :
  *   FREEBOX_HOST       (défaut: mafreebox.freebox.fr)
  *   FREEBOX_APP_ID     (défaut: fr.freebox.mcp)
+ *   FREEBOX_TOKEN_FILE (optionnel: chemin du fichier token à réutiliser)
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
