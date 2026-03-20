@@ -44,14 +44,59 @@ npm run build
 ### Option 2 — Docker
 
 ```bash
-docker build -f docker/Dockerfile -t freebox-mcp .
+docker build -t freebox-mcp .
 ```
+
+---
+
+## Lancer le serveur MCP
+
+### Node.js
+
+```bash
+node dist/index.js
+```
+
+Ou avec des variables d'environnement personnalisées :
+
+```bash
+FREEBOX_HOST=192.168.1.254 FREEBOX_TOKEN_FILE=/chemin/token.json node dist/index.js
+```
+
+### Docker
+
+```bash
+# Build
+docker build -t freebox-mcp .
+
+# Run (monte un volume pour persister le token entre les redémarrages)
+docker run --rm -it \
+  -v freebox-data:/app/data \
+  -e FREEBOX_HOST=mafreebox.freebox.fr \
+  freebox-mcp
+```
+
+### Dépannage — mode verbose
+
+```bash
+docker run --rm -i \
+  -v freebox-data:/app/data \
+  -e FREEBOX_HOST=mafreebox.freebox.fr \
+  -e DEBUG=1 \
+  freebox-mcp
+```
+
+Les logs `[DEBUG]` apparaissent sur `stderr` : config au démarrage, chargement/sauvegarde du token, chaque appel d'outil et chaque requête HTTP vers l'API Freebox.
+
+> **Note** : le serveur communique via **stdio** — il est conçu pour être lancé par Claude Desktop comme processus enfant, pas comme un service en arrière-plan. Lancez-le manuellement uniquement pour tester ou déboguer.
 
 ---
 
 ## Configuration Claude Desktop
 
-Editez `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) ou `%APPDATA%\Claude\claude_desktop_config.json` (Windows) :
+Editez `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) ou `%APPDATA%\Claude\claude_desktop_config.json` (Windows).
+
+### Option 1 — Node.js
 
 ```json
 {
@@ -66,6 +111,26 @@ Editez `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
   }
 }
 ```
+
+### Option 2 — Docker
+
+```json
+{
+  "mcpServers": {
+    "freebox": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-v", "freebox-data:/app/data",
+        "-e", "FREEBOX_HOST=mafreebox.freebox.fr",
+        "freebox-mcp"
+      ]
+    }
+  }
+}
+```
+
+> **`-i` et non `-it`** : Claude Desktop communique via stdio sans TTY — `-t` provoque une erreur. `--rm` supprime le conteneur à chaque arrêt ; le volume `freebox-data` assure la persistance du token.
 
 Redémarrez Claude Desktop.
 
@@ -84,11 +149,12 @@ Redémarrez Claude Desktop.
 
 ## Variables d'environnement
 
-| Variable          | Défaut                    | Description                        |
-|-------------------|---------------------------|------------------------------------|
-| `FREEBOX_HOST`    | `mafreebox.freebox.fr`    | Hostname ou IP de la Freebox       |
-| `FREEBOX_APP_ID`  | `fr.freebox.mcp`          | Identifiant de l'application       |
-| `FREEBOX_TOKEN_FILE` | `freebox_token.json`    | Chemin du fichier token (permet de réutiliser un token existant) |
+| Variable             | Défaut                          | Description                                          |
+|----------------------|---------------------------------|------------------------------------------------------|
+| `FREEBOX_HOST`       | `mafreebox.freebox.fr`          | Hostname ou IP de la Freebox                         |
+| `FREEBOX_APP_ID`     | `fr.freebox.mcp`                | Identifiant de l'application                         |
+| `FREEBOX_TOKEN_FILE` | `<dist>/../freebox_token.json`  | Chemin absolu du fichier token. En Docker : `/app/data/freebox_token.json` (défini dans l'image) |
+| `DEBUG`              | _(désactivé)_                   | Mettre à `1` pour activer les logs détaillés sur stderr (config, appels d'outils, requêtes API) |
 
 ---
 
@@ -180,7 +246,7 @@ Claude Desktop
 freebox-mcp (Node.js)
   ├── src/index.ts           # Serveur MCP + définition des 29 outils
   ├── src/freeboxClient.ts   # Client API Freebox (auth HMAC-SHA1 + endpoints)
-  └── docker/Dockerfile      # Image Docker du serveur
+  └── Dockerfile             # Image Docker du serveur
      │
      │ HTTP (réseau local uniquement)
      ▼

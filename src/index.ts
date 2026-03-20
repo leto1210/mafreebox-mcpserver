@@ -23,6 +23,11 @@ import { FreeboxClient } from "./freeboxClient.js";
 
 const FREEBOX_HOST = process.env.FREEBOX_HOST ?? "mafreebox.freebox.fr";
 const APP_ID = process.env.FREEBOX_APP_ID ?? "fr.freebox.mcp";
+const DEBUG = process.env.DEBUG === "1";
+
+function debug(msg: string) {
+  if (DEBUG) process.stderr.write(`[DEBUG] ${msg}\n`);
+}
 
 const client = new FreeboxClient({
   host: FREEBOX_HOST,
@@ -360,6 +365,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   const a = (args ?? {}) as Record<string, unknown>;
+  debug(`tool call: ${name} ${JSON.stringify(a)}`);
 
   switch (name) {
     // AUTH
@@ -499,10 +505,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // ─── Démarrage ─────────────────────────────────────────────────────────────
 
 async function main() {
+  process.stderr.write("✅ Freebox MCP server démarré (stdio)\n");
+  debug(`FREEBOX_HOST=${FREEBOX_HOST}`);
+  debug(`FREEBOX_APP_ID=${APP_ID}`);
+  debug(`FREEBOX_TOKEN_FILE=${process.env.FREEBOX_TOKEN_FILE ?? "(défaut)"}`);
+  debug(`token chargé: ${client.isAuthorized()}`);
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  // Ne pas écrire sur stdout après connect (stdio est réservé au protocole MCP)
-  process.stderr.write("✅ Freebox MCP server démarré (stdio)\n");
 }
 
 main().catch((e) => {

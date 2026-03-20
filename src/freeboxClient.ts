@@ -14,6 +14,10 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname, isAbsolute } from "path";
 import { fileURLToPath } from "url";
 
+function debug(msg: string) {
+  if (process.env.DEBUG === "1") process.stderr.write(`[DEBUG] ${msg}\n`);
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function resolveTokenFilePath(): string {
@@ -59,24 +63,30 @@ export class FreeboxClient {
   // ─── Persistance du token ───────────────────────────────────────────────────
 
   private loadStoredToken(): void {
+    debug(`chargement token depuis: ${this.tokenFilePath}`);
     if (existsSync(this.tokenFilePath)) {
       try {
         const data: StoredToken = JSON.parse(readFileSync(this.tokenFilePath, "utf8"));
         this.appToken = data.appToken;
         this.apiVersion = data.apiVersion ?? 8;
-      } catch {
-        // ignore
+        debug(`token chargé (apiVersion=${this.apiVersion})`);
+      } catch (e) {
+        debug(`échec lecture token: ${e}`);
       }
+    } else {
+      debug("aucun token existant");
     }
   }
 
   private saveToken(appToken: string, trackId: number): void {
     const data: StoredToken = { appToken, trackId, apiVersion: this.apiVersion };
     const tokenDir = dirname(this.tokenFilePath);
+    debug(`sauvegarde token dans: ${this.tokenFilePath}`);
     if (!existsSync(tokenDir)) {
       mkdirSync(tokenDir, { recursive: true });
     }
     writeFileSync(this.tokenFilePath, JSON.stringify(data, null, 2));
+    debug("token sauvegardé");
   }
 
   // ─── URL builder ────────────────────────────────────────────────────────────
@@ -100,6 +110,7 @@ export class FreeboxClient {
       headers["X-Fbx-App-Auth"] = this.sessionToken;
     }
 
+    debug(`→ ${method} ${this.url(path)}`);
     const res = await fetch(this.url(path), {
       method,
       headers,
@@ -107,6 +118,7 @@ export class FreeboxClient {
     });
 
     const json = (await res.json()) as { success: boolean; result: T; msg?: string; error_code?: string };
+    debug(`← ${res.status} success=${json.success}${json.error_code ? ` error=${json.error_code}` : ""}`);
 
     if (!json.success) {
       throw new Error(`Freebox API error [${json.error_code ?? "unknown"}]: ${json.msg ?? "no message"}`);
