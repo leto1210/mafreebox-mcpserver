@@ -10,12 +10,19 @@
  */
 
 import { createHmac } from "crypto";
-import { readFileSync, writeFileSync, existsSync } from "fs";
-import { join, dirname } from "path";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { join, dirname, isAbsolute } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const TOKEN_FILE = join(__dirname, "..", "freebox_token.json");
+
+function resolveTokenFilePath(): string {
+  const configured = process.env.FREEBOX_TOKEN_FILE;
+  if (!configured) {
+    return join(__dirname, "..", "freebox_token.json");
+  }
+  return isAbsolute(configured) ? configured : join(process.cwd(), configured);
+}
 
 export interface FreeboxConfig {
   host: string;       // ex: "mafreebox.freebox.fr"
@@ -38,21 +45,23 @@ interface SessionInfo {
 
 export class FreeboxClient {
   private config: FreeboxConfig;
+  private tokenFilePath: string;
   private apiVersion = 8;
   private sessionToken: string | null = null;
   private appToken: string | null = null;
 
   constructor(config: FreeboxConfig) {
     this.config = config;
+    this.tokenFilePath = resolveTokenFilePath();
     this.loadStoredToken();
   }
 
   // ─── Persistance du token ───────────────────────────────────────────────────
 
   private loadStoredToken(): void {
-    if (existsSync(TOKEN_FILE)) {
+    if (existsSync(this.tokenFilePath)) {
       try {
-        const data: StoredToken = JSON.parse(readFileSync(TOKEN_FILE, "utf8"));
+        const data: StoredToken = JSON.parse(readFileSync(this.tokenFilePath, "utf8"));
         this.appToken = data.appToken;
         this.apiVersion = data.apiVersion ?? 8;
       } catch {
@@ -63,7 +72,11 @@ export class FreeboxClient {
 
   private saveToken(appToken: string, trackId: number): void {
     const data: StoredToken = { appToken, trackId, apiVersion: this.apiVersion };
-    writeFileSync(TOKEN_FILE, JSON.stringify(data, null, 2));
+    const tokenDir = dirname(this.tokenFilePath);
+    if (!existsSync(tokenDir)) {
+      mkdirSync(tokenDir, { recursive: true });
+    }
+    writeFileSync(this.tokenFilePath, JSON.stringify(data, null, 2));
   }
 
   // ─── URL builder ────────────────────────────────────────────────────────────

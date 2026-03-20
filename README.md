@@ -88,6 +88,7 @@ Redémarrez Claude Desktop.
 |-------------------|---------------------------|------------------------------------|
 | `FREEBOX_HOST`    | `mafreebox.freebox.fr`    | Hostname ou IP de la Freebox       |
 | `FREEBOX_APP_ID`  | `fr.freebox.mcp`          | Identifiant de l'application       |
+| `FREEBOX_TOKEN_FILE` | `freebox_token.json`    | Chemin du fichier token (permet de réutiliser un token existant) |
 
 ---
 
@@ -205,7 +206,7 @@ Le serveur tourne en **stdio** : Claude Desktop l'exécute comme un processus en
 
 ## Sécurité
 
-- Le token d'authentification est stocké dans `freebox_token.json` (à côté du binaire)
+- Le token d'authentification est stocké dans `freebox_token.json` (à côté du binaire), ou dans le chemin défini par `FREEBOX_TOKEN_FILE`
 - L'API Freebox n'est accessible que depuis le réseau local : aucune donnée ne transite par internet
 - Le serveur MCP tourne en local sur votre machine
 
