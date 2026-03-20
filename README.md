@@ -44,7 +44,7 @@ npm run build
 ### Option 2 — Docker
 
 ```bash
-docker build -t freebox-mcp .
+docker build -f docker/Dockerfile -t freebox-mcp .
 ```
 
 ---
@@ -177,8 +177,9 @@ Claude Desktop
      │ MCP (stdio)
      ▼
 freebox-mcp (Node.js)
-  ├── index.ts         # Serveur MCP + définition des 29 outils
-  └── freeboxClient.ts # Client API Freebox (auth HMAC-SHA1 + endpoints)
+  ├── src/index.ts           # Serveur MCP + définition des 29 outils
+  ├── src/freeboxClient.ts   # Client API Freebox (auth HMAC-SHA1 + endpoints)
+  └── docker/Dockerfile      # Image Docker du serveur
      │
      │ HTTP (réseau local uniquement)
      ▼
