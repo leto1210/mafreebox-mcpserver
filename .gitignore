@@ -2,6 +2,7 @@ node_modules/
 dist/
 .vscode/
 .claude/
+tasks/
 freebox_token.json
 npm-debug.log*
 
