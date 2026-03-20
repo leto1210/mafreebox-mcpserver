@@ -1,0 +1,382 @@
+/**
+ * freebox-mcp — client d'authentification et d'accès à l'API Freebox OS
+ *
+ * Flow d'authentification :
+ *  1. GET /api_version                → découverte
+ *  2. POST /api/vX/login/authorize/   → demande d'app_token (affichage LCD Freebox)
+ *  3. GET  /api/vX/login/             → obtenir le challenge
+ *  4. POST /api/vX/login/session/     → ouvrir la session avec HMAC-SHA1(app_token, challenge)
+ *  5. Toutes les requêtes → header X-Fbx-App-Auth: <session_token>
+ */
+
+import { createHmac } from "crypto";
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const TOKEN_FILE = join(__dirname, "..", "freebox_token.json");
+
+export interface FreeboxConfig {
+  host: string;       // ex: "mafreebox.freebox.fr"
+  appId: string;      // ex: "fr.freebox.mcp"
+  appName: string;    // ex: "Freebox MCP"
+  appVersion: string; // ex: "1.0.0"
+  deviceName: string; // ex: "Claude MCP"
+}
+
+interface StoredToken {
+  appToken: string;
+  trackId: number;
+  apiVersion: number;
+}
+
+interface SessionInfo {
+  sessionToken: string;
+  permissions: Record<string, boolean>;
+}
+
+export class FreeboxClient {
+  private config: FreeboxConfig;
+  private apiVersion = 8;
+  private sessionToken: string | null = null;
+  private appToken: string | null = null;
+
+  constructor(config: FreeboxConfig) {
+    this.config = config;
+    this.loadStoredToken();
+  }
+
+  // ─── Persistance du token ───────────────────────────────────────────────────
+
+  private loadStoredToken(): void {
+    if (existsSync(TOKEN_FILE)) {
+      try {
+        const data: StoredToken = JSON.parse(readFileSync(TOKEN_FILE, "utf8"));
+        this.appToken = data.appToken;
+        this.apiVersion = data.apiVersion ?? 8;
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  private saveToken(appToken: string, trackId: number): void {
+    const data: StoredToken = { appToken, trackId, apiVersion: this.apiVersion };
+    writeFileSync(TOKEN_FILE, JSON.stringify(data, null, 2));
+  }
+
+  // ─── URL builder ────────────────────────────────────────────────────────────
+
+  private url(path: string): string {
+    return `http://${this.config.host}/api/v${this.apiVersion}${path}`;
+  }
+
+  // ─── Low-level fetch ────────────────────────────────────────────────────────
+
+  private async request<T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    authenticated = true
+  ): Promise<T> {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (authenticated && this.sessionToken) {
+      headers["X-Fbx-App-Auth"] = this.sessionToken;
+    }
+
+    const res = await fetch(this.url(path), {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    const json = (await res.json()) as { success: boolean; result: T; msg?: string; error_code?: string };
+
+    if (!json.success) {
+      throw new Error(`Freebox API error [${json.error_code ?? "unknown"}]: ${json.msg ?? "no message"}`);
+    }
+
+    return json.result;
+  }
+
+  // ─── Découverte ─────────────────────────────────────────────────────────────
+
+  async discover(): Promise<void> {
+    const res = await fetch(`http://${this.config.host}/api_version`);
+    const info = (await res.json()) as { api_version: string };
+    const major = parseInt(info.api_version.split(".")[0]);
+    if (major > 0) this.apiVersion = major;
+  }
+
+  // ─── Authentification ───────────────────────────────────────────────────────
+
+  /**
+   * Lance la procédure d'autorisation initiale.
+   * L'utilisateur doit appuyer sur ">" sur la Freebox.
+   * Retourne le track_id pour pouvoir poller le statut.
+   */
+  async startAuthorization(): Promise<{ trackId: number; message: string }> {
+    await this.discover();
+
+    const result = await this.request<{ app_token: string; track_id: number }>(
+      "POST",
+      "/login/authorize/",
+      {
+        app_id: this.config.appId,
+        app_name: this.config.appName,
+        app_version: this.config.appVersion,
+        device_name: this.config.deviceName,
+      },
+      false
+    );
+
+    this.appToken = result.app_token;
+    this.saveToken(result.app_token, result.track_id);
+
+    return {
+      trackId: result.track_id,
+      message: `Autorisation en attente (track_id: ${result.track_id}). Veuillez appuyer sur ">" sur votre Freebox.`,
+    };
+  }
+
+  /**
+   * Vérifie l'état de la demande d'autorisation.
+   */
+  async checkAuthorizationStatus(trackId: number): Promise<{ status: string; challenge?: string }> {
+    const result = await this.request<{ status: string; challenge: string }>(
+      "GET",
+      `/login/authorize/${trackId}`,
+      undefined,
+      false
+    );
+    return result;
+  }
+
+  /**
+   * Ouvre une session à partir de l'app_token stocké.
+   * Calcule le password = HMAC-SHA1(app_token, challenge)
+   */
+  async openSession(): Promise<SessionInfo> {
+    if (!this.appToken) {
+      throw new Error("Aucun app_token. Lancez d'abord startAuthorization().");
+    }
+
+    // 1. Obtenir le challenge
+    const loginResult = await this.request<{ logged_in: boolean; challenge: string }>(
+      "GET",
+      "/login/",
+      undefined,
+      false
+    );
+
+    // 2. Calculer le password
+    const password = createHmac("sha1", this.appToken)
+      .update(loginResult.challenge)
+      .digest("hex");
+
+    // 3. Ouvrir la session
+    const session = await this.request<{ session_token: string; permissions: Record<string, boolean> }>(
+      "POST",
+      "/login/session/",
+      {
+        app_id: this.config.appId,
+        password,
+      },
+      false
+    );
+
+    this.sessionToken = session.session_token;
+    return { sessionToken: session.session_token, permissions: session.permissions };
+  }
+
+  /**
+   * S'assure qu'une session est ouverte, sinon en ouvre une.
+   */
+  async ensureSession(): Promise<void> {
+    if (!this.sessionToken) {
+      await this.openSession();
+    }
+  }
+
+  async closeSession(): Promise<void> {
+    if (!this.sessionToken) return;
+    try {
+      await this.request("POST", "/login/logout/", {});
+    } finally {
+      this.sessionToken = null;
+    }
+  }
+
+  // ─── APIs métier ────────────────────────────────────────────────────────────
+
+  async getConnectionStatus() {
+    await this.ensureSession();
+    return this.request("GET", "/connection/");
+  }
+
+  async getSystemInfo() {
+    await this.ensureSession();
+    return this.request("GET", "/system/");
+  }
+
+  async reboot() {
+    await this.ensureSession();
+    return this.request("POST", "/system/reboot/", {});
+  }
+
+  async getLanHosts() {
+    await this.ensureSession();
+    return this.request("GET", "/lan/browser/pub/");
+  }
+
+  async getWifiConfig() {
+    await this.ensureSession();
+    return this.request("GET", "/wifi/config/");
+  }
+
+  async setWifiEnabled(enabled: boolean) {
+    await this.ensureSession();
+    return this.request("PUT", "/wifi/config/", { enabled });
+  }
+
+  async getWifiBSS() {
+    await this.ensureSession();
+    return this.request("GET", "/wifi/bss/");
+  }
+
+  async getDownloads() {
+    await this.ensureSession();
+    return this.request("GET", "/downloads/");
+  }
+
+  async addDownload(downloadUrl: string) {
+    await this.ensureSession();
+    // encode en base64 (format attendu par l'API)
+    const download_url_list = Buffer.from(downloadUrl).toString("base64");
+    return this.request("POST", "/downloads/add/", { download_url_list });
+  }
+
+  async deleteDownload(id: number) {
+    await this.ensureSession();
+    return this.request("DELETE", `/downloads/${id}/`);
+  }
+
+  async updateDownload(id: number, status: "stopped" | "downloading") {
+    await this.ensureSession();
+    return this.request("PUT", `/downloads/${id}/`, { status });
+  }
+
+  async getCallLog() {
+    await this.ensureSession();
+    return this.request("GET", "/call/log/");
+  }
+
+  async markCallRead(id: number) {
+    await this.ensureSession();
+    return this.request("PUT", `/call/log/${id}/`, { is_new: false });
+  }
+
+  async getContacts() {
+    await this.ensureSession();
+    return this.request("GET", "/contact/");
+  }
+
+  async listFiles(path: string) {
+    await this.ensureSession();
+    const encoded = encodeURIComponent(Buffer.from(path).toString("base64"));
+    return this.request("GET", `/fs/ls/${encoded}`);
+  }
+
+  async getDHCPConfig() {
+    await this.ensureSession();
+    return this.request("GET", "/dhcp/config/");
+  }
+
+  async getDHCPLeases() {
+    await this.ensureSession();
+    return this.request("GET", "/dhcp/leases/");
+  }
+
+  async getPortForwarding() {
+    await this.ensureSession();
+    return this.request("GET", "/fw/redir/");
+  }
+
+  async addPortForwarding(rule: {
+    lan_port: number;
+    wan_port_start: number;
+    wan_port_end: number;
+    lan_ip: string;
+    ip_proto: "tcp" | "udp";
+    enabled: boolean;
+    comment: string;
+  }) {
+    await this.ensureSession();
+    return this.request("POST", "/fw/redir/", rule);
+  }
+
+  async deletePortForwarding(id: number) {
+    await this.ensureSession();
+    return this.request("DELETE", `/fw/redir/${id}/`);
+  }
+
+  async getParentalConfig() {
+    await this.ensureSession();
+    return this.request("GET", "/parental/config/");
+  }
+
+  async getParentalFilters() {
+    await this.ensureSession();
+    return this.request("GET", "/parental/filter/");
+  }
+
+  async getVMs() {
+    await this.ensureSession();
+    return this.request("GET", "/vm/");
+  }
+
+  async startVM(id: number) {
+    await this.ensureSession();
+    return this.request("POST", `/vm/${id}/start/`, {});
+  }
+
+  async stopVM(id: number) {
+    await this.ensureSession();
+    return this.request("POST", `/vm/${id}/stop/`, {});
+  }
+
+  async getStorageDisks() {
+    await this.ensureSession();
+    return this.request("GET", "/storage/disk/");
+  }
+
+  async getFreeplug() {
+    await this.ensureSession();
+    return this.request("GET", "/freeplug/");
+  }
+
+  async wakeOnLan(mac: string, password?: string) {
+    await this.ensureSession();
+    const body: Record<string, string> = { mac };
+    if (password) body.password = password;
+    return this.request("POST", "/lan/wol/pub/", body);
+  }
+
+  async getRRDStats(db: string, fields: string[], date_start?: number, date_end?: number, precision?: number) {
+    await this.ensureSession();
+    return this.request("POST", "/rrd/", {
+      db,
+      fields,
+      ...(date_start && { date_start }),
+      ...(date_end && { date_end }),
+      ...(precision && { precision }),
+    });
+  }
+
+  isAuthorized(): boolean {
+    return !!this.appToken;
+  }
+}
