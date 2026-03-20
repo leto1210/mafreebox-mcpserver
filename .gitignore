@@ -5,3 +5,30 @@ freebox_token.json
 npm-debug.log*
 
 _integration/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon files
+Icon
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.Spotlight-V100
+.Trashes
+.TemporaryItems
+.TemporaryItems-1024
+
+# Directories potentially created on remote AFP/SMB/CIFS mounts
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.TCSH
+
+# End of macOS specific files
+.env
