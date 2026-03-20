@@ -3,3 +3,5 @@ dist/
 .vscode/
 freebox_token.json
 npm-debug.log*
+
+_integration/
