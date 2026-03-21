@@ -26,7 +26,7 @@ Une fois connecté, vous pouvez demander à Claude :
 
 ## Prérequis
 
-- **Node.js ≥ 20** (Node.js 24 supporté — ou Docker)
+- **Node.js ≥ 22** (ou Docker)
 - **Claude Desktop** (avec support MCP)
 - Être sur le **même réseau local** que votre Freebox *(l'API Freebox n'est pas accessible depuis internet)*
 
