@@ -1,4 +1,49 @@
-Claude.md
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+- **Build**: `npm run build` — compiles TypeScript (`src/`) to `dist/`
+- **Dev**: `npm run dev` — tsx watch mode (auto-recompile on save)
+- **Start**: `npm start` — runs `node dist/index.js` (production)
+- **Test**: `npm test` — no-op placeholder (no test suite yet)
+- No linting configured (no ESLint/Prettier)
+
+## Architecture
+
+MCP (Model Context Protocol) server that bridges Claude Desktop to a **Freebox** (French ISP router) via its local HTTP REST API.
+
+```
+Claude Desktop → (MCP stdio) → Node.js process → (HTTP) → Freebox OS API v8+
+```
+
+### Two-file source structure
+- **`src/index.ts`** — MCP server entry point: defines 29 tools with JSON schemas, handles `ListTools`/`CallTool` requests, delegates all logic to `FreeboxClient`. All tool responses use a `safe()` error wrapper.
+- **`src/freeboxClient.ts`** — Freebox API client: auth flow, session management, 25+ endpoint methods. `ensureSession()` is called before every API request.
+
+### Auth flow (HMAC-SHA1)
+1. `freebox_authorize` → POST to Freebox, user presses `>` on LCD panel → stores `app_token` in `freebox_token.json`
+2. `freebox_check_authorization` → poll until approved
+3. Every subsequent call → `openSession()`: GET challenge → POST `HMAC-SHA1(app_token, challenge)` → receive `session_token` → set `X-Fbx-App-Auth` header
+
+Token file location: `$FREEBOX_TOKEN_FILE` (default: `dist/../freebox_token.json`; Docker: `/app/data/freebox_token.json`)
+
+### Environment variables
+| Variable | Default | Purpose |
+|---|---|---|
+| `FREEBOX_HOST` | `mafreebox.freebox.fr` | Freebox hostname |
+| `FREEBOX_APP_ID` | `fr.freebox.mcp` | App identifier for auth |
+| `FREEBOX_TOKEN_FILE` | `dist/../freebox_token.json` | Token persistence path |
+| `DEBUG` | unset | Set to `1` for verbose stderr logs |
+
+### Docker
+Multi-stage Alpine build. Token persisted in volume `/app/data` (owned by `node` user before `VOLUME` declaration). `--ignore-scripts` on all `npm ci` calls to skip the `prepare` hook.
+
+### MCP protocol note
+Communication is over **stdio**. Claude Desktop spawns the process as a child. All debug logs must go to **stderr** only — stdout is reserved for the MCP protocol.
+
+---
 
 ### 1. Plan Mode Default
 - Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
@@ -42,8 +87,8 @@ Claude.md
 2. **Verify Plan**: Check in before starting implementation  
 3. **Track Progress**: Mark items complete as you go  
 4. **Explain Changes**: High-level summary at each step  
-5. **Document Results**: Add review section to `tasks/todo. md`  
-6. **Capture Lessons**: Update `tasks/lessons. md` after corrections  
+5. **Document Results**: Add review section to `tasks/todo.md`  
+6. **Capture Lessons**: Update `tasks/lessons.md` after corrections  
 
 ## Core Principles
 
