@@ -37,8 +37,8 @@ Une fois connecté, vous pouvez demander à Claude :
 ### Option 1 — Node.js (recommandé pour Claude Desktop)
 
 ```bash
-git clone https://github.com/votre-repo/freebox-mcp.git
-cd freebox-mcp
+git clone https://github.com/leto1210/mafreebox-mcpserver.git
+cd mafreebox-mcpserver
 npm install
 npm run build
 ```
