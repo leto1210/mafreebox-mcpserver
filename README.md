@@ -43,11 +43,27 @@ npm install
 npm run build
 ```
 
-### Option 2 — Docker
+### Option 2 — Docker (image pré-compilée)
+
+```bash
+docker pull ghcr.io/leto1210/mafreebox-mcpserver:latest
+```
+
+Ou construire depuis les sources :
 
 ```bash
 docker build -t freebox-mcp .
 ```
+
+### Option 3 — Docker Compose (avec FreeboxOS-Ultra-Dashboard)
+
+Si vous utilisez le [tableau de bord FreeboxOS-Ultra-Dashboard](https://github.com/HGHugo/FreeboxOS-Ultra-Dashboard), le serveur MCP est disponible en tant que profil Compose optionnel :
+
+```bash
+docker compose --profile mcp up -d
+```
+
+Le service utilise l'image `ghcr.io/leto1210/mafreebox-mcpserver:latest` et partage le volume `freebox_mcp_data` pour la persistance du token.
 
 ---
 
@@ -68,10 +84,14 @@ FREEBOX_HOST=192.168.1.254 FREEBOX_TOKEN_FILE=/chemin/token.json node dist/index
 ### Docker
 
 ```bash
-# Build
-docker build -t freebox-mcp .
+# Image pré-compilée (recommandé)
+docker run --rm -it \
+  -v freebox-data:/app/data \
+  -e FREEBOX_HOST=mafreebox.freebox.fr \
+  ghcr.io/leto1210/mafreebox-mcpserver:latest
 
-# Run (monte un volume pour persister le token entre les redémarrages)
+# Ou depuis une image construite localement
+docker build -t freebox-mcp .
 docker run --rm -it \
   -v freebox-data:/app/data \
   -e FREEBOX_HOST=mafreebox.freebox.fr \
@@ -114,7 +134,7 @@ Editez `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 }
 ```
 
-### Option 2 — Docker
+### Option 2 — Docker (image pré-compilée)
 
 ```json
 {
@@ -125,7 +145,7 @@ Editez `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
         "run", "--rm", "-i",
         "-v", "freebox-data:/app/data",
         "-e", "FREEBOX_HOST=mafreebox.freebox.fr",
-        "freebox-mcp"
+        "ghcr.io/leto1210/mafreebox-mcpserver:latest"
       ]
     }
   }
