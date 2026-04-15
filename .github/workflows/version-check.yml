@@ -1,0 +1,28 @@
+name: Version Bump Check
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check version bump
+        run: |
+          PKG_VERSION="v$(node -p "require('./package.json').version")"
+          LATEST_TAG=$(git tag --sort=-creatordate | grep '^v' | head -1)
+
+          echo "package.json version : $PKG_VERSION"
+          echo "Latest git tag       : $LATEST_TAG"
+
+          if [ "$PKG_VERSION" = "$LATEST_TAG" ]; then
+            echo "::error::Version in package.json ($PKG_VERSION) matches the latest tag. Please bump the version before merging."
+            exit 1
+          fi
+
+          echo "Version bump confirmed: $LATEST_TAG → $PKG_VERSION"
