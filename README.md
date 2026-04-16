@@ -1,10 +1,12 @@
 # freebox-mcp 🏠
 
-Developpé à partir du travail de  @HGHugo ==> https://github.com/HGHugo/FreeboxOS-Ultra-Dashboard/
+Developpé à partir du travail de [@HGHugo](https://github.com/HGHugo) — [FreeboxOS-Ultra-Dashboard](https://github.com/HGHugo/FreeboxOS-Ultra-Dashboard), le tableau de bord web pour piloter votre Freebox depuis un navigateur.
 
 **MCP Server pour piloter votre Freebox via Claude AI**
 
 Connecte Claude à l'API officielle Freebox OS pour piloter votre box directement en langage naturel.
+
+> **Intégration** : ce serveur MCP est conçu pour fonctionner aux côtés de [FreeboxOS-Ultra-Dashboard](https://github.com/HGHugo/FreeboxOS-Ultra-Dashboard) (tableau de bord React/Express) via un profil Docker Compose optionnel (`--profile mcp`). Il peut aussi être utilisé seul avec Claude Desktop.
 
 ---
 
