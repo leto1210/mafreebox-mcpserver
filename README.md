@@ -1,7 +1,6 @@
 # freebox-mcp 🏠
 
-Developpé à partir du travail de  @HGHugo ==> https://github.com/HGHugo/FreeboxOS-Ultra-Dashboard/issues/new
-
+Developpé à partir du travail de  @HGHugo ==> https://github.com/HGHugo/FreeboxOS-Ultra-Dashboard/
 **MCP Server pour piloter votre Freebox via Claude AI**
 
 Connecte Claude à l'API officielle Freebox OS pour piloter votre box directement en langage naturel.
