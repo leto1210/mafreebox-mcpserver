@@ -17,13 +17,29 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import { readFileSync } from "fs";
+import { dirname, join } from "path";
 import { FreeboxClient } from "./freeboxClient.js";
+import { fileURLToPath } from "url";
 
 // ─── Configuration ─────────────────────────────────────────────────────────
 
 const FREEBOX_HOST = process.env.FREEBOX_HOST ?? "mafreebox.freebox.fr";
 const APP_ID = process.env.FREEBOX_APP_ID ?? "fr.freebox.mcp";
 const DEBUG = process.env.DEBUG === "1";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function loadAppVersion(): string {
+  try {
+    const packageJsonPath = join(__dirname, "..", "package.json");
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8")) as { version?: string };
+    return packageJson.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
+const APP_VERSION = loadAppVersion();
 
 function debug(msg: string) {
   if (DEBUG) process.stderr.write(`[DEBUG] ${msg}\n`);
@@ -33,7 +49,7 @@ const client = new FreeboxClient({
   host: FREEBOX_HOST,
   appId: APP_ID,
   appName: "Freebox MCP",
-  appVersion: "1.0.0",
+  appVersion: APP_VERSION,
   deviceName: "Claude AI",
 });
 
@@ -352,7 +368,7 @@ const TOOLS = [
 // ─── Serveur MCP ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: "freebox-mcp", version: "1.0.0" },
+  { name: "freebox-mcp", version: APP_VERSION },
   { capabilities: { tools: {} } }
 );
 

@@ -28,7 +28,7 @@ Une fois connecté, vous pouvez demander à Claude :
 
 ## Prérequis
 
-- **Node.js ≥ 22** (ou Docker)
+- **Node.js ≥ 24** (ou Docker)
 - **Claude Desktop** (avec support MCP)
 - Être sur le **même réseau local** que votre Freebox *(l'API Freebox n'est pas accessible depuis internet)*
 
@@ -50,6 +50,8 @@ npm run build
 ```bash
 docker pull ghcr.io/leto1210/mafreebox-mcpserver:latest
 ```
+
+L'image officielle utilise **Node 25 Alpine**.
 
 Ou construire depuis les sources :
 
