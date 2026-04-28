@@ -727,6 +727,127 @@ export class FreeboxClient {
     });
   }
 
+  // ─── DHCP (Phase 4) ────────────────────────────────────────────────────
+
+  async getDhcpConfig() {
+    await this.ensureSession();
+    return this.request("GET", "/dhcp/config/");
+  }
+
+  async updateDhcpConfig(config: Record<string, unknown>) {
+    await this.ensureSession();
+    return this.request("PUT", "/dhcp/config/", { body: config });
+  }
+
+  async getDhcpStaticLeases() {
+    await this.ensureSession();
+    return this.request("GET", "/dhcp/static_lease/");
+  }
+
+  async addDhcpStaticLease(lease: Record<string, unknown>) {
+    await this.ensureSession();
+    return this.request("POST", "/dhcp/static_lease/", { body: lease });
+  }
+
+  async updateDhcpStaticLease(leaseId: string, lease: Record<string, unknown>) {
+    await this.ensureSession();
+    return this.request("PUT", `/dhcp/static_lease/${leaseId}/`, { body: lease });
+  }
+
+  async deleteDhcpStaticLease(leaseId: string) {
+    await this.ensureSession();
+    return this.request("DELETE", `/dhcp/static_lease/${leaseId}/`);
+  }
+
+  async getDhcpDynamicLeases() {
+    await this.ensureSession();
+    return this.request("GET", "/dhcp/dynamic_lease/");
+  }
+
+  // ─── WiFi Guest Networks (Phase 4) ─────────────────────────────────────
+
+  async getWifiGuestNetworks() {
+    await this.ensureSession();
+    return this.request("GET", "/wifi/custom_key/config/");
+  }
+
+  async addWifiGuestNetwork(config: Record<string, unknown>) {
+    await this.ensureSession();
+    return this.request("POST", "/wifi/custom_key/", { body: config });
+  }
+
+  async updateWifiGuestNetwork(guestId: string, config: Record<string, unknown>) {
+    await this.ensureSession();
+    return this.request("PUT", `/wifi/custom_key/${guestId}/`, { body: config });
+  }
+
+  async deleteWifiGuestNetwork(guestId: string) {
+    await this.ensureSession();
+    return this.request("DELETE", `/wifi/custom_key/${guestId}/`);
+  }
+
+  // ─── WiFi Advanced (Phase 4) ───────────────────────────────────────────
+
+  async getWifiAccessPoints() {
+    await this.ensureSession();
+    return this.request("GET", "/wifi/ap/");
+  }
+
+  async getWifiStations(apId?: string) {
+    await this.ensureSession();
+    const path = apId ? `/wifi/ap/${apId}/stations/` : "/wifi/stations/";
+    return this.request("GET", path);
+  }
+
+  async setWifiBss(bssId: string, enabled: boolean) {
+    await this.ensureSession();
+    return this.request("PUT", `/wifi/bss/${bssId}/`, { body: { enabled } });
+  }
+
+  async getWifiPlanning() {
+    await this.ensureSession();
+    return this.request("GET", "/wifi/planning/");
+  }
+
+  async setWifiPlanning(planning: Record<string, unknown>) {
+    await this.ensureSession();
+    return this.request("PUT", "/wifi/planning/", { body: planning });
+  }
+
+  // ─── Downloads Stats (Phase 4) ──────────────────────────────────────────
+
+  async getDownloadStats() {
+    await this.ensureSession();
+    return this.request("GET", "/downloads/stats/");
+  }
+
+  async getDownloadsConfig() {
+    await this.ensureSession();
+    return this.request("GET", "/downloads/config/");
+  }
+
+  async getDownloadTrackers(downloadId: number) {
+    await this.ensureSession();
+    return this.request("GET", `/downloads/${downloadId}/trackers/`);
+  }
+
+  async getDownloadPeers(downloadId: number) {
+    await this.ensureSession();
+    return this.request("GET", `/downloads/${downloadId}/peers/`);
+  }
+
+  async getDownloadFiles(downloadId: number) {
+    await this.ensureSession();
+    return this.request("GET", `/downloads/${downloadId}/files/`);
+  }
+
+  async setDownloadFilePriority(downloadId: number, fileId: number, priority: string) {
+    await this.ensureSession();
+    return this.request("PUT", `/downloads/${downloadId}/files/${fileId}/`, {
+      body: { priority },
+    });
+  }
+
   isAuthorized(): boolean {
     return !!this.appToken;
   }

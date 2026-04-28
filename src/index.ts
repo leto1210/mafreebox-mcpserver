@@ -373,6 +373,192 @@ const TOOLS = [
       required: ["db", "fields"],
     },
   },
+
+  // DHCP STATIC LEASES (Phase 4)
+  {
+    name: "freebox_get_dhcp_static_leases",
+    description: "Liste toutes les adresses IP fixes attribuées (baux DHCP statiques) avec MAC, IP, hostname.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_add_dhcp_static_lease",
+    description: "Ajoute une nouvelle adresse IP fixe (DHCP statique).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        mac: { type: "string", description: "Adresse MAC de l'appareil (ex: AA:BB:CC:DD:EE:FF)" },
+        ip: { type: "string", description: "Adresse IP à réserver (ex: 192.168.1.50)" },
+        hostname: { type: "string", description: "Nom d'hôte optionnel" },
+        comment: { type: "string", description: "Commentaire descriptif (optionnel)" },
+      },
+      required: ["mac", "ip"],
+    },
+  },
+  {
+    name: "freebox_update_dhcp_static_lease",
+    description: "Modifie une adresse IP fixe existante.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Identifiant du bail statique" },
+        mac: { type: "string", description: "Nouvelle adresse MAC (optionnel)" },
+        ip: { type: "string", description: "Nouvelle adresse IP (optionnel)" },
+        hostname: { type: "string", description: "Nouveau hostname (optionnel)" },
+        comment: { type: "string", description: "Nouveau commentaire (optionnel)" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "freebox_delete_dhcp_static_lease",
+    description: "Supprime une adresse IP fixe (DHCP statique).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Identifiant du bail statique" },
+      },
+      required: ["id"],
+    },
+  },
+
+  // WIFI GUEST NETWORKS (Phase 4)
+  {
+    name: "freebox_get_wifi_guest_networks",
+    description: "Liste les réseaux Wi-Fi invités configurés (SSIDs, clés, permissions).",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_add_wifi_guest_network",
+    description: "Crée un nouveau réseau Wi-Fi invité.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ssid: { type: "string", description: "Nom du réseau Wi-Fi invité" },
+        key: { type: "string", description: "Clé WPA2 (optionnel, générée si absent)" },
+        enable: { type: "boolean", description: "Activer immédiatement (défaut: true)" },
+        hidden: { type: "boolean", description: "Masquer le SSID (défaut: false)" },
+      },
+      required: ["ssid"],
+    },
+  },
+  {
+    name: "freebox_update_wifi_guest_network",
+    description: "Modifie un réseau Wi-Fi invité existant.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Identifiant du réseau invité" },
+        ssid: { type: "string", description: "Nouveau SSID (optionnel)" },
+        key: { type: "string", description: "Nouvelle clé (optionnel)" },
+        enable: { type: "boolean", description: "Activer/désactiver (optionnel)" },
+        hidden: { type: "boolean", description: "Masquer SSID (optionnel)" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "freebox_delete_wifi_guest_network",
+    description: "Supprime un réseau Wi-Fi invité.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "Identifiant du réseau invité" },
+      },
+      required: ["id"],
+    },
+  },
+
+  // WIFI ADVANCED (Phase 4)
+  {
+    name: "freebox_get_wifi_access_points",
+    description: "Liste les Access Points (APs) Wi-Fi par bande (2.4/5/6 GHz) avec puissance, clients, canal.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_get_wifi_stations",
+    description: "Liste tous les clients Wi-Fi connectés avec signal (dBm), débit, bande, hostname.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ap_id: { type: "string", description: "Filtrer par Access Point (optionnel)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "freebox_get_wifi_planning",
+    description: "Retourne le calendrier d'activation/désactivation Wi-Fi programmé.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_set_wifi_planning",
+    description: "Configure le calendrier d'activation/désactivation du Wi-Fi (jours/heures).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        planning: { type: "string", description: "Calendrier au format Freebox (ex: config JSON)" },
+      },
+      required: ["planning"],
+    },
+  },
+
+  // DOWNLOADS STATS & DETAILS (Phase 4)
+  {
+    name: "freebox_get_download_stats",
+    description: "Retourne les statistiques globales des téléchargements (bytes téléchargés, vitesse moyenne, nb torrents).",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_get_downloads_config",
+    description: "Retourne la configuration des téléchargements (répertoire, limites de vitesse, options torrent).",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_get_download_trackers",
+    description: "Retourne les trackers d'un torrent spécifique avec le nombre de seeders/leechers.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Identifiant du téléchargement/torrent" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "freebox_get_download_peers",
+    description: "Retourne les pairs (peers) connectées d'un torrent avec IP, pays, débit, pourcentage complété.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Identifiant du téléchargement/torrent" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "freebox_get_download_files",
+    description: "Retourne la liste des fichiers d'un torrent avec taille, progression et priorité.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Identifiant du téléchargement/torrent" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "freebox_set_download_file_priority",
+    description: "Définit la priorité de téléchargement d'un fichier dans un torrent.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Identifiant du téléchargement/torrent" },
+        file_id: { type: "number", description: "Identifiant du fichier" },
+        priority: { type: "string", enum: ["low", "normal", "high"], description: "Priorité" },
+      },
+      required: ["id", "file_id", "priority"],
+    },
+  },
 ];
 
 // ─── Serveur MCP ───────────────────────────────────────────────────────────
@@ -556,6 +742,92 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           a.date_end as number | undefined,
           a.precision as number | undefined
         )
+      );
+
+    // DHCP STATIC LEASES (Phase 4)
+    case "freebox_get_dhcp_static_leases":
+      return safe(() => client.getDhcpStaticLeases());
+
+    case "freebox_add_dhcp_static_lease": {
+      const lease: Record<string, unknown> = {
+        mac: a.mac,
+        ip: a.ip,
+      };
+      if (a.hostname) lease.hostname = a.hostname;
+      if (a.comment) lease.comment = a.comment;
+      return safe(() => client.addDhcpStaticLease(lease));
+    }
+
+    case "freebox_update_dhcp_static_lease": {
+      const lease: Record<string, unknown> = {};
+      if (a.mac) lease.mac = a.mac;
+      if (a.ip) lease.ip = a.ip;
+      if (a.hostname) lease.hostname = a.hostname;
+      if (a.comment) lease.comment = a.comment;
+      return safe(() => client.updateDhcpStaticLease(a.id as string, lease));
+    }
+
+    case "freebox_delete_dhcp_static_lease":
+      return safe(() => client.deleteDhcpStaticLease(a.id as string));
+
+    // WIFI GUEST NETWORKS (Phase 4)
+    case "freebox_get_wifi_guest_networks":
+      return safe(() => client.getWifiGuestNetworks());
+
+    case "freebox_add_wifi_guest_network": {
+      const config: Record<string, unknown> = {
+        ssid: a.ssid,
+        enable: a.enable !== false,
+        hidden: a.hidden === true,
+      };
+      if (a.key) config.key = a.key;
+      return safe(() => client.addWifiGuestNetwork(config));
+    }
+
+    case "freebox_update_wifi_guest_network": {
+      const config: Record<string, unknown> = {};
+      if (a.ssid) config.ssid = a.ssid;
+      if (a.key) config.key = a.key;
+      if (a.enable !== undefined) config.enable = a.enable;
+      if (a.hidden !== undefined) config.hidden = a.hidden;
+      return safe(() => client.updateWifiGuestNetwork(a.id as string, config));
+    }
+
+    case "freebox_delete_wifi_guest_network":
+      return safe(() => client.deleteWifiGuestNetwork(a.id as string));
+
+    // WIFI ADVANCED (Phase 4)
+    case "freebox_get_wifi_access_points":
+      return safe(() => client.getWifiAccessPoints());
+
+    case "freebox_get_wifi_stations":
+      return safe(() => client.getWifiStations(a.ap_id as string | undefined));
+
+    case "freebox_get_wifi_planning":
+      return safe(() => client.getWifiPlanning());
+
+    case "freebox_set_wifi_planning":
+      return safe(() => client.setWifiPlanning(JSON.parse(a.planning as string)));
+
+    // DOWNLOADS STATS & DETAILS (Phase 4)
+    case "freebox_get_download_stats":
+      return safe(() => client.getDownloadStats());
+
+    case "freebox_get_downloads_config":
+      return safe(() => client.getDownloadsConfig());
+
+    case "freebox_get_download_trackers":
+      return safe(() => client.getDownloadTrackers(a.id as number));
+
+    case "freebox_get_download_peers":
+      return safe(() => client.getDownloadPeers(a.id as number));
+
+    case "freebox_get_download_files":
+      return safe(() => client.getDownloadFiles(a.id as number));
+
+    case "freebox_set_download_file_priority":
+      return safe(() =>
+        client.setDownloadFilePriority(a.id as number, a.file_id as number, a.priority as string)
       );
 
     default:
