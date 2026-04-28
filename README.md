@@ -185,7 +185,7 @@ Redémarrez Claude Desktop.
 
 ---
 
-## Outils MCP disponibles (30 outils)
+## Outils MCP disponibles (jusqu'à 31 outils, selon le modèle)
 
 ### 🔐 Authentification
 | Outil | Description |
@@ -199,6 +199,7 @@ Redémarrez Claude Desktop.
 |-------|-------------|
 | `freebox_get_connection` | État de la connexion internet, IP publique, débits |
 | `freebox_get_system` | Températures, uptime, firmware, mémoire |
+| `freebox_get_capabilities` | Modèle détecté + capacités (VM, Wi‑Fi 6GHz/7, stockage) |
 | `freebox_reboot` | Redémarre la Freebox |
 
 ### 🖥️ Réseau local
@@ -254,6 +255,8 @@ Redémarrez Claude Desktop.
 | `freebox_get_vms` | Liste des VMs et leur état |
 | `freebox_start_vm` | Démarre une VM |
 | `freebox_stop_vm` | Arrête une VM |
+
+> Les outils VM sont automatiquement masqués si le modèle détecté ne les supporte pas.
 
 ### 💾 Infrastructure
 | Outil | Description |

@@ -1,6 +1,6 @@
 {
   "name": "freebox-mcp",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "MCP Server pour piloter une Freebox via Claude",
   "type": "module",
   "main": "dist/index.js",

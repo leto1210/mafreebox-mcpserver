@@ -332,3 +332,75 @@ test("FreeboxClient surfaces actionable insufficient_rights errors", async () =>
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test("FreeboxClient detects capabilities for a Pop model", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = (async () =>
+    createJsonResponse({
+      api_version: "8.0",
+      box_model_name: "Freebox Pop",
+      box_flavor: "light",
+    })) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.1.2",
+      deviceName: "Claude AI",
+    });
+
+    const capabilities = await client.getCapabilities();
+    assert.equal(capabilities.model, "pop");
+    assert.equal(capabilities.vmSupport, "none");
+    assert.equal(capabilities.wifi7, true);
+    assert.equal(client.supportsVm(capabilities), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("FreeboxClient caches capabilities for repeated calls", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+  let callCount = 0;
+
+  globalThis.fetch = (async () => {
+    callCount += 1;
+    return createJsonResponse({
+      api_version: "9.0",
+      box_model_name: "Freebox v9",
+      box_flavor: "full",
+    });
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.1.2",
+      deviceName: "Claude AI",
+    });
+
+    const first = await client.getCapabilities();
+    const second = await client.getCapabilities();
+
+    assert.equal(first.model, "ultra");
+    assert.equal(second.model, "ultra");
+    assert.equal(callCount, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});

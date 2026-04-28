@@ -76,6 +76,27 @@ interface FreeboxApiResponse<T> {
   missing_right?: string;
 }
 
+export type FreeboxModel = "ultra" | "delta" | "pop" | "revolution" | "unknown";
+export type VmSupport = "full" | "none";
+
+export interface FreeboxCapabilities {
+  model: FreeboxModel;
+  modelName: string;
+  boxFlavor: "full" | "light";
+  vmSupport: VmSupport;
+  wifi6ghz: boolean;
+  wifi7: boolean;
+  hasInternalStorage: boolean;
+}
+
+interface ApiVersionInfo {
+  api_version?: string;
+  box_model_name?: string;
+  box_model?: string;
+  device_name?: string;
+  box_flavor?: string;
+}
+
 interface RequestOptions {
   body?: unknown;
   authenticated?: boolean;
@@ -91,6 +112,9 @@ export class FreeboxClient {
   private sessionToken: string | null = null;
   private appToken: string | null = null;
   private permissions: Record<string, boolean> = {};
+  private capabilities: FreeboxCapabilities | null = null;
+  private capabilitiesLastUpdated = 0;
+  private readonly capabilitiesCacheTtlMs = 5 * 60 * 1000;
 
   constructor(config: FreeboxConfig) {
     this.config = config;
@@ -148,6 +172,112 @@ export class FreeboxClient {
 
   private url(path: string): string {
     return `http://${this.config.host}/api/v${this.apiVersion}${path}`;
+  }
+
+  private detectModelFromName(modelName: string): FreeboxModel {
+    const lower = modelName.toLowerCase();
+
+    if (lower.includes("v9") || lower.includes("ultra")) return "ultra";
+    if (lower.includes("pop") || lower.includes("v8")) return "pop";
+    if (lower.includes("v7") || lower.includes("delta")) return "delta";
+    if (
+      lower.includes("v6") ||
+      lower.includes("revolution") ||
+      lower.includes("révolution") ||
+      lower.includes("mini")
+    ) {
+      return "revolution";
+    }
+
+    return "unknown";
+  }
+
+  private buildCapabilities(model: FreeboxModel, modelName: string, boxFlavor: "full" | "light"): FreeboxCapabilities {
+    switch (model) {
+      case "ultra":
+        return {
+          model,
+          modelName,
+          boxFlavor,
+          vmSupport: "full",
+          wifi6ghz: true,
+          wifi7: true,
+          hasInternalStorage: boxFlavor === "full",
+        };
+      case "delta":
+        return {
+          model,
+          modelName,
+          boxFlavor,
+          vmSupport: "full",
+          wifi6ghz: true,
+          wifi7: false,
+          hasInternalStorage: boxFlavor === "full",
+        };
+      case "pop":
+        return {
+          model,
+          modelName,
+          boxFlavor,
+          vmSupport: "none",
+          wifi6ghz: false,
+          wifi7: true,
+          hasInternalStorage: false,
+        };
+      case "revolution":
+        return {
+          model,
+          modelName,
+          boxFlavor,
+          vmSupport: "none",
+          wifi6ghz: false,
+          wifi7: false,
+          hasInternalStorage: true,
+        };
+      default:
+        return {
+          model,
+          modelName,
+          boxFlavor,
+          vmSupport: "none",
+          wifi6ghz: false,
+          wifi7: false,
+          hasInternalStorage: boxFlavor === "full",
+        };
+    }
+  }
+
+  private async checkActualStorage(): Promise<boolean> {
+    if (!this.appToken) {
+      return false;
+    }
+
+    try {
+      const disks = await this.getStorageDisks();
+      if (!Array.isArray(disks)) {
+        return false;
+      }
+
+      return disks.some((disk: unknown) => {
+        if (!disk || typeof disk !== "object") {
+          return false;
+        }
+        const typed = disk as { type?: string; bus_type?: string; model?: string };
+        const type = (typed.type ?? "").toLowerCase();
+        const busType = (typed.bus_type ?? "").toLowerCase();
+        const model = (typed.model ?? "").toLowerCase();
+        return (
+          type.includes("internal") ||
+          type.includes("nvme") ||
+          type.includes("sata") ||
+          busType.includes("sata") ||
+          busType.includes("nvme") ||
+          model.includes("nvme")
+        );
+      });
+    } catch {
+      return false;
+    }
   }
 
   private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
@@ -254,6 +384,43 @@ export class FreeboxClient {
     if (major > 0) this.apiVersion = major;
   }
 
+  async getCapabilities(forceRefresh = false): Promise<FreeboxCapabilities> {
+    if (
+      !forceRefresh &&
+      this.capabilities &&
+      Date.now() - this.capabilitiesLastUpdated < this.capabilitiesCacheTtlMs
+    ) {
+      return this.capabilities;
+    }
+
+    const url = `http://${this.config.host}/api_version`;
+    const res = await this.fetchWithTimeout(url, { method: "GET" });
+    const info = await this.parseJsonBody<ApiVersionInfo>(res, "GET", url);
+
+    const apiVersion = info.api_version;
+    if (apiVersion) {
+      const major = parseInt(apiVersion.split(".")[0]);
+      if (major > 0) {
+        this.apiVersion = major;
+      }
+    }
+
+    const modelName = info.box_model_name || info.box_model || info.device_name || "Freebox";
+    const boxFlavor = info.box_flavor === "full" ? "full" : "light";
+    const model = this.detectModelFromName(modelName);
+
+    const capabilities = this.buildCapabilities(model, modelName, boxFlavor);
+
+    const hasRealStorage = await this.checkActualStorage();
+    if (hasRealStorage) {
+      capabilities.hasInternalStorage = true;
+    }
+
+    this.capabilities = capabilities;
+    this.capabilitiesLastUpdated = Date.now();
+    return capabilities;
+  }
+
   // ─── Authentification ───────────────────────────────────────────────────────
 
   /**
@@ -354,6 +521,8 @@ export class FreeboxClient {
     } finally {
       this.sessionToken = null;
       this.permissions = {};
+      this.capabilities = null;
+      this.capabilitiesLastUpdated = 0;
     }
   }
 
@@ -371,6 +540,8 @@ export class FreeboxClient {
     this.sessionToken = null;
     this.appToken = null;
     this.permissions = {};
+    this.capabilities = null;
+    this.capabilitiesLastUpdated = 0;
 
     return {
       message: "Autorisation Freebox réinitialisée. Relancez freebox_authorize pour réenregistrer l'application.",
@@ -562,5 +733,10 @@ export class FreeboxClient {
 
   getPermissions(): Record<string, boolean> {
     return { ...this.permissions };
+  }
+
+  supportsVm(capabilities?: FreeboxCapabilities): boolean {
+    const cap = capabilities ?? this.capabilities;
+    return cap?.vmSupport === "full";
   }
 }

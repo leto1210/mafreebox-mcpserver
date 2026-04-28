@@ -116,6 +116,11 @@ const TOOLS = [
     inputSchema: { type: "object", properties: {}, required: [] },
   },
   {
+    name: "freebox_get_capabilities",
+    description: "Retourne les capacités détectées de la Freebox (modèle, support VM, Wi-Fi 6GHz/7, stockage interne).",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
     name: "freebox_reboot",
     description: "Redémarre la Freebox. Action irréversible, demander confirmation à l'utilisateur avant d'appeler cet outil.",
     inputSchema: { type: "object", properties: {}, required: [] },
@@ -377,10 +382,30 @@ const server = new Server(
   { capabilities: { tools: {} } }
 );
 
+const VM_TOOL_NAMES = new Set(["freebox_get_vms", "freebox_start_vm", "freebox_stop_vm"]);
+
+async function getFilteredTools() {
+  try {
+    const capabilities = await client.getCapabilities();
+    if (!client.supportsVm(capabilities)) {
+      return TOOLS.filter((tool) => !VM_TOOL_NAMES.has(tool.name));
+    }
+  } catch (e) {
+    debug(`échec détection capacités pour filtrage outils: ${e}`);
+  }
+
+  return TOOLS;
+}
+
+async function assertVmSupport() {
+  const capabilities = await client.getCapabilities();
+  if (!client.supportsVm(capabilities)) {
+    throw new Error(`Les machines virtuelles ne sont pas supportées sur ${capabilities.modelName}.`);
+  }
+}
+
 // Liste des outils
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: TOOLS,
-}));
+server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: await getFilteredTools() }));
 
 // Exécution des outils
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -405,6 +430,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "freebox_get_system":
       return safe(() => client.getSystemInfo());
+
+    case "freebox_get_capabilities":
+      return safe(() => client.getCapabilities());
 
     case "freebox_reboot":
       return safe(() => client.reboot());
@@ -493,13 +521,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // VMs
     case "freebox_get_vms":
-      return safe(() => client.getVMs());
+      return safe(async () => {
+        await assertVmSupport();
+        return client.getVMs();
+      });
 
     case "freebox_start_vm":
-      return safe(() => client.startVM(a.id as number));
+      return safe(async () => {
+        await assertVmSupport();
+        return client.startVM(a.id as number);
+      });
 
     case "freebox_stop_vm":
-      return safe(() => client.stopVM(a.id as number));
+      return safe(async () => {
+        await assertVmSupport();
+        return client.stopVM(a.id as number);
+      });
 
     // STOCKAGE
     case "freebox_get_storage":
