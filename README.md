@@ -185,16 +185,18 @@ Redémarrez Claude Desktop.
 
 ---
 
-## Outils MCP disponibles (jusqu'à 31 outils, selon le modèle)
+## Outils MCP disponibles (49 outils)
 
-### 🔐 Authentification
+> **Note**: Les outils VM sont automatiquement masqués si le modèle détecté ne les supporte pas. Phase 4 (v1.3.0) ajoute 18 nouveaux outils pour DHCP, WiFi avancé et statistiques téléchargement.
+
+### 🔐 Authentification (3 outils)
 | Outil | Description |
 |-------|-------------|
 | `freebox_authorize` | Lance la demande d'autorisation (LCD Freebox) |
 | `freebox_check_authorization` | Vérifie si l'autorisation a été accordée |
 | `freebox_reset_authorization` | Réinitialise le token local pour relancer un enregistrement propre |
 
-### 🌐 Connexion & Système
+### 🌐 Connexion & Système (4 outils)
 | Outil | Description |
 |-------|-------------|
 | `freebox_get_connection` | État de la connexion internet, IP publique, débits |
@@ -202,20 +204,28 @@ Redémarrez Claude Desktop.
 | `freebox_get_capabilities` | Modèle détecté + capacités (VM, Wi‑Fi 6GHz/7, stockage) |
 | `freebox_reboot` | Redémarre la Freebox |
 
-### 🖥️ Réseau local
+### 🖥️ Réseau local (2 outils)
 | Outil | Description |
 |-------|-------------|
 | `freebox_get_lan_hosts` | Liste des appareils connectés |
 | `freebox_wake_on_lan` | Réveille un appareil par son adresse MAC |
 
-### 📶 Wi-Fi
+### 📶 Wi-Fi (11 outils)
 | Outil | Description |
 |-------|-------------|
 | `freebox_get_wifi` | Configuration Wi-Fi globale |
 | `freebox_toggle_wifi` | Active / désactive le Wi-Fi |
 | `freebox_get_wifi_networks` | Liste des réseaux (SSID, bandes, sécurité) |
+| `freebox_get_wifi_access_points` | Liste des APs par bande (2.4/5/6 GHz) |
+| `freebox_get_wifi_stations` | Clients WiFi connectés avec signal/débit |
+| `freebox_get_wifi_guest_networks` | Réseaux invités configurés |
+| `freebox_add_wifi_guest_network` | Crée un réseau invité |
+| `freebox_update_wifi_guest_network` | Modifie un réseau invité |
+| `freebox_delete_wifi_guest_network` | Supprime un réseau invité |
+| `freebox_get_wifi_planning` | Calendrier d'activation WiFi |
+| `freebox_set_wifi_planning` | Configure le calendrier WiFi |
 
-### ⬇️ Téléchargements
+### ⬇️ Téléchargements (12 outils)
 | Outil | Description |
 |-------|-------------|
 | `freebox_get_downloads` | Liste et progression des téléchargements |
@@ -223,47 +233,71 @@ Redémarrez Claude Desktop.
 | `freebox_pause_download` | Met en pause |
 | `freebox_resume_download` | Reprend |
 | `freebox_delete_download` | Supprime |
+| `freebox_delete_downloads` | Supprime tous les téléchargements |
+| `freebox_get_download_stats` | Statistiques globales (bytes, nb torrents) |
+| `freebox_get_downloads_config` | Configuration des téléchargements |
+| `freebox_get_download_trackers` | Trackers d'un torrent (seeders/leechers) |
+| `freebox_get_download_peers` | Pairs connectées (IP, pays, débit) |
+| `freebox_get_download_files` | Fichiers d'un torrent (taille, progression) |
+| `freebox_set_download_file_priority` | Définit la priorité de téléchargement |
 
-### 📞 Téléphonie
+### 📞 Téléphonie (3 outils)
 | Outil | Description |
 |-------|-------------|
 | `freebox_get_calls` | Journal d'appels (entrants, sortants, manqués) |
 | `freebox_mark_call_read` | Marque un appel manqué comme lu |
 | `freebox_get_contacts` | Répertoire téléphonique |
 
-### 📁 Fichiers
+### 📁 Fichiers (1 outil)
 | Outil | Description |
 |-------|-------------|
 | `freebox_list_files` | Explore les fichiers du disque Freebox |
 
-### 🔧 Réseau avancé
+### 🔧 Réseau - DHCP (5 outils)
 | Outil | Description |
 |-------|-------------|
 | `freebox_get_dhcp` | Config DHCP + baux actifs |
+| `freebox_get_dhcp_static_leases` | Adresses IP fixes assignées |
+| `freebox_add_dhcp_static_lease` | Ajoute une IP fixe (MAC) |
+| `freebox_update_dhcp_static_lease` | Modifie une assignation IP |
+| `freebox_delete_dhcp_static_lease` | Supprime une IP fixe |
+
+### 🔧 Réseau - Ports (3 outils)
+| Outil | Description |
+|-------|-------------|
 | `freebox_get_port_forwarding` | Règles de redirection de ports |
 | `freebox_add_port_forwarding` | Ajoute une règle NAT |
 | `freebox_delete_port_forwarding` | Supprime une règle NAT |
 
-### 👨‍👧 Contrôle parental
+### 👨‍👧 Contrôle parental (1 outil)
 | Outil | Description |
 |-------|-------------|
 | `freebox_get_parental` | Profils et filtres de contrôle parental |
 
-### 💻 Machines virtuelles (Ultra/Delta)
+### 💻 Machines virtuelles (3 outils, Ultra/Delta uniquement)
 | Outil | Description |
 |-------|-------------|
 | `freebox_get_vms` | Liste des VMs et leur état |
 | `freebox_start_vm` | Démarre une VM |
 | `freebox_stop_vm` | Arrête une VM |
 
-> Les outils VM sont automatiquement masqués si le modèle détecté ne les supporte pas.
-
-### 💾 Infrastructure
+### 💾 Infrastructure (3 outils)
 | Outil | Description |
 |-------|-------------|
 | `freebox_get_storage` | Disques connectés, espace, état SMART |
 | `freebox_get_freeplug` | État des adaptateurs CPL |
 | `freebox_get_stats` | Statistiques RRD (débit, températures, DSL) |
+
+---
+
+## Historique des versions
+
+| Version | Fonctionnalités clés | Tests |
+|---------|---------------------|-------|
+| v1.3.0 | Phase 4-5: DHCP static leases, WiFi guest/advanced, Download stats (18 tools) | 14/14 ✅ |
+| v1.2.0 | Phase 3: Model detection, capability caching, VM tool gating | 9/9 ✅ |
+| v1.2.0 | Phase 2: Auth reset, permission guidance | 7/7 ✅ |
+| v1.1.2 | Phase 1: HTTP hardening, JSON safety, session retry, download fix | 5/5 ✅ |
 
 ---
 
@@ -275,9 +309,10 @@ Claude Desktop
      │ MCP (stdio)
      ▼
 freebox-mcp (Node.js)
-  ├── src/index.ts           # Serveur MCP + définition des 29 outils
-  ├── src/freeboxClient.ts   # Client API Freebox (auth HMAC-SHA1 + endpoints)
-  └── Dockerfile             # Image Docker du serveur
+  ├── src/index.ts             # Serveur MCP + 49 outils
+  ├── src/freeboxClient.ts     # Client API Freebox (auth HMAC-SHA1, 40+ endpoints)
+  ├── src/freeboxClient.test.ts # 14 tests (auth, session, model, Phase 4)
+  └── Dockerfile               # Image Docker (Node 25-Alpine)
      │
      │ HTTP (réseau local uniquement)
      ▼
