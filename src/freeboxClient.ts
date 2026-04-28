@@ -10,7 +10,7 @@
  */
 
 import { createHmac } from "crypto";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from "fs";
 import { join, dirname, isAbsolute } from "path";
 import { fileURLToPath } from "url";
 
@@ -19,6 +19,27 @@ function debug(msg: string) {
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_REQUEST_TIMEOUT_MS = 10_000;
+const PERMISSION_LABELS: Record<string, string> = {
+  settings: "Modification des réglages de la Freebox",
+  contacts: "Répertoire téléphonique",
+  calls: "Journal d'appels",
+  downloader: "Gestionnaire de téléchargements",
+  explorer: "Explorateur de fichiers",
+  parental: "Contrôle parental",
+  pvr: "Enregistrements",
+  vm: "Machines virtuelles",
+};
+
+function getRequestTimeoutMs(): number {
+  const configured = process.env.FREEBOX_REQUEST_TIMEOUT;
+  if (!configured) {
+    return DEFAULT_REQUEST_TIMEOUT_MS;
+  }
+
+  const parsed = Number.parseInt(configured, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_REQUEST_TIMEOUT_MS;
+}
 
 function resolveTokenFilePath(): string {
   const configured = process.env.FREEBOX_TOKEN_FILE;
@@ -47,16 +68,34 @@ interface SessionInfo {
   permissions: Record<string, boolean>;
 }
 
+interface FreeboxApiResponse<T> {
+  success: boolean;
+  result: T;
+  msg?: string;
+  error_code?: string;
+  missing_right?: string;
+}
+
+interface RequestOptions {
+  body?: unknown;
+  authenticated?: boolean;
+  contentType?: string;
+  encodeBody?: (body: unknown) => BodyInit | undefined;
+}
+
 export class FreeboxClient {
   private config: FreeboxConfig;
   private tokenFilePath: string;
+  private requestTimeoutMs: number;
   private apiVersion = 8;
   private sessionToken: string | null = null;
   private appToken: string | null = null;
+  private permissions: Record<string, boolean> = {};
 
   constructor(config: FreeboxConfig) {
     this.config = config;
     this.tokenFilePath = resolveTokenFilePath();
+    this.requestTimeoutMs = getRequestTimeoutMs();
     this.loadStoredToken();
   }
 
@@ -89,49 +128,128 @@ export class FreeboxClient {
     debug("token sauvegardé");
   }
 
+  private getPermissionLabel(permission?: string): string {
+    if (!permission) {
+      return "Permission inconnue";
+    }
+    return PERMISSION_LABELS[permission] ?? permission;
+  }
+
+  private buildPermissionErrorMessage(missingRight?: string): string {
+    const permissionLabel = this.getPermissionLabel(missingRight);
+    const missingPart = missingRight
+      ? `Permission manquante : "${permissionLabel}".`
+      : "Cette action requiert des droits supplémentaires sur la Freebox.";
+
+    return `${missingPart} Utilisez freebox_reset_authorization, puis relancez l'autorisation en accordant tous les droits nécessaires sur l'écran de la Freebox.`;
+  }
+
   // ─── URL builder ────────────────────────────────────────────────────────────
 
   private url(path: string): string {
     return `http://${this.config.host}/api/v${this.apiVersion}${path}`;
   }
 
-  // ─── Low-level fetch ────────────────────────────────────────────────────────
+  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.requestTimeoutMs);
 
-  private async request<T>(
+    try {
+      return await fetch(url, { ...init, signal: controller.signal });
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name === "AbortError") {
+        throw new Error(`Délai dépassé après ${this.requestTimeoutMs} ms pour ${url}`);
+      }
+      throw new Error(`Échec de la requête vers ${url}: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private async parseJsonBody<T>(res: Response, method: string, url: string): Promise<T> {
+    const contentType = res.headers.get("content-type") ?? "";
+    const rawText = await res.text();
+
+    if (!contentType.includes("application/json")) {
+      const snippet = rawText.slice(0, 200).trim();
+      throw new Error(
+        `Réponse non-JSON pour ${method} ${url} (status ${res.status})${snippet ? `: ${snippet}` : ""}`
+      );
+    }
+
+    try {
+      return JSON.parse(rawText) as T;
+    } catch {
+      const snippet = rawText.slice(0, 200).trim();
+      throw new Error(
+        `JSON invalide pour ${method} ${url} (status ${res.status})${snippet ? `: ${snippet}` : ""}`
+      );
+    }
+  }
+
+  private async performRequest<T>(
     method: string,
     path: string,
-    body?: unknown,
-    authenticated = true
+    options: RequestOptions,
+    retrying = false
   ): Promise<T> {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
+    const {
+      body,
+      authenticated = true,
+      contentType = "application/json",
+      encodeBody = (value: unknown) => (value === undefined ? undefined : JSON.stringify(value)),
+    } = options;
+
+    const headers: Record<string, string> = {};
+    if (contentType) {
+      headers["Content-Type"] = contentType;
+    }
     if (authenticated && this.sessionToken) {
       headers["X-Fbx-App-Auth"] = this.sessionToken;
     }
 
-    debug(`→ ${method} ${this.url(path)}`);
-    const res = await fetch(this.url(path), {
+    const url = this.url(path);
+    debug(`→ ${method} ${url}`);
+
+    const res = await this.fetchWithTimeout(url, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: encodeBody(body),
     });
 
-    const json = (await res.json()) as { success: boolean; result: T; msg?: string; error_code?: string };
+    const json = await this.parseJsonBody<FreeboxApiResponse<T>>(res, method, url);
     debug(`← ${res.status} success=${json.success}${json.error_code ? ` error=${json.error_code}` : ""}`);
 
     if (!json.success) {
+      if (authenticated && !retrying && (json.error_code === "auth_required" || res.status === 401)) {
+        debug("session expirée, tentative de reconnexion");
+        this.sessionToken = null;
+        await this.openSession();
+        return this.performRequest<T>(method, path, options, true);
+      }
+
+      if (json.error_code === "insufficient_rights") {
+        throw new Error(this.buildPermissionErrorMessage(json.missing_right));
+      }
+
       throw new Error(`Freebox API error [${json.error_code ?? "unknown"}]: ${json.msg ?? "no message"}`);
     }
 
     return json.result;
   }
 
+  // ─── Low-level fetch ────────────────────────────────────────────────────────
+
+  private async request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
+    return this.performRequest(method, path, options);
+  }
+
   // ─── Découverte ─────────────────────────────────────────────────────────────
 
   async discover(): Promise<void> {
-    const res = await fetch(`http://${this.config.host}/api_version`);
-    const info = (await res.json()) as { api_version: string };
+    const url = `http://${this.config.host}/api_version`;
+    const res = await this.fetchWithTimeout(url, { method: "GET" });
+    const info = await this.parseJsonBody<{ api_version: string }>(res, "GET", url);
     const major = parseInt(info.api_version.split(".")[0]);
     if (major > 0) this.apiVersion = major;
   }
@@ -150,12 +268,14 @@ export class FreeboxClient {
       "POST",
       "/login/authorize/",
       {
-        app_id: this.config.appId,
-        app_name: this.config.appName,
-        app_version: this.config.appVersion,
-        device_name: this.config.deviceName,
-      },
-      false
+        body: {
+          app_id: this.config.appId,
+          app_name: this.config.appName,
+          app_version: this.config.appVersion,
+          device_name: this.config.deviceName,
+        },
+        authenticated: false,
+      }
     );
 
     this.appToken = result.app_token;
@@ -174,8 +294,7 @@ export class FreeboxClient {
     const result = await this.request<{ status: string; challenge: string }>(
       "GET",
       `/login/authorize/${trackId}`,
-      undefined,
-      false
+      { authenticated: false }
     );
     return result;
   }
@@ -193,8 +312,7 @@ export class FreeboxClient {
     const loginResult = await this.request<{ logged_in: boolean; challenge: string }>(
       "GET",
       "/login/",
-      undefined,
-      false
+      { authenticated: false }
     );
 
     // 2. Calculer le password
@@ -207,13 +325,16 @@ export class FreeboxClient {
       "POST",
       "/login/session/",
       {
-        app_id: this.config.appId,
-        password,
-      },
-      false
+        body: {
+          app_id: this.config.appId,
+          password,
+        },
+        authenticated: false,
+      }
     );
 
     this.sessionToken = session.session_token;
+    this.permissions = session.permissions ?? {};
     return { sessionToken: session.session_token, permissions: session.permissions };
   }
 
@@ -229,10 +350,32 @@ export class FreeboxClient {
   async closeSession(): Promise<void> {
     if (!this.sessionToken) return;
     try {
-      await this.request("POST", "/login/logout/", {});
+      await this.request("POST", "/login/logout/", { body: {} });
     } finally {
       this.sessionToken = null;
+      this.permissions = {};
     }
+  }
+
+  async resetAuthorization(): Promise<{ message: string; tokenFilePath: string }> {
+    try {
+      await this.closeSession();
+    } catch (e) {
+      debug(`échec fermeture session avant reset: ${e}`);
+    }
+
+    if (existsSync(this.tokenFilePath)) {
+      unlinkSync(this.tokenFilePath);
+    }
+
+    this.sessionToken = null;
+    this.appToken = null;
+    this.permissions = {};
+
+    return {
+      message: "Autorisation Freebox réinitialisée. Relancez freebox_authorize pour réenregistrer l'application.",
+      tokenFilePath: this.tokenFilePath,
+    };
   }
 
   // ─── APIs métier ────────────────────────────────────────────────────────────
@@ -249,7 +392,7 @@ export class FreeboxClient {
 
   async reboot() {
     await this.ensureSession();
-    return this.request("POST", "/system/reboot/", {});
+    return this.request("POST", "/system/reboot/", { body: {} });
   }
 
   async getLanHosts() {
@@ -264,7 +407,7 @@ export class FreeboxClient {
 
   async setWifiEnabled(enabled: boolean) {
     await this.ensureSession();
-    return this.request("PUT", "/wifi/config/", { enabled });
+    return this.request("PUT", "/wifi/config/", { body: { enabled } });
   }
 
   async getWifiBSS() {
@@ -279,9 +422,19 @@ export class FreeboxClient {
 
   async addDownload(downloadUrl: string) {
     await this.ensureSession();
-    // encode en base64 (format attendu par l'API)
-    const download_url_list = Buffer.from(downloadUrl).toString("base64");
-    return this.request("POST", "/downloads/add/", { download_url_list });
+    const params = new URLSearchParams();
+    params.append("download_url", downloadUrl);
+
+    return this.request("POST", "/downloads/add/", {
+      body: params,
+      contentType: "application/x-www-form-urlencoded",
+      encodeBody: (value) => {
+        if (!(value instanceof URLSearchParams)) {
+          return undefined;
+        }
+        return value.toString();
+      },
+    });
   }
 
   async deleteDownload(id: number) {
@@ -291,7 +444,7 @@ export class FreeboxClient {
 
   async updateDownload(id: number, status: "stopped" | "downloading") {
     await this.ensureSession();
-    return this.request("PUT", `/downloads/${id}/`, { status });
+    return this.request("PUT", `/downloads/${id}/`, { body: { status } });
   }
 
   async getCallLog() {
@@ -301,7 +454,7 @@ export class FreeboxClient {
 
   async markCallRead(id: number) {
     await this.ensureSession();
-    return this.request("PUT", `/call/log/${id}/`, { is_new: false });
+    return this.request("PUT", `/call/log/${id}/`, { body: { is_new: false } });
   }
 
   async getContacts() {
@@ -340,7 +493,7 @@ export class FreeboxClient {
     comment: string;
   }) {
     await this.ensureSession();
-    return this.request("POST", "/fw/redir/", rule);
+    return this.request("POST", "/fw/redir/", { body: rule });
   }
 
   async deletePortForwarding(id: number) {
@@ -365,12 +518,12 @@ export class FreeboxClient {
 
   async startVM(id: number) {
     await this.ensureSession();
-    return this.request("POST", `/vm/${id}/start/`, {});
+    return this.request("POST", `/vm/${id}/start/`, { body: {} });
   }
 
   async stopVM(id: number) {
     await this.ensureSession();
-    return this.request("POST", `/vm/${id}/stop/`, {});
+    return this.request("POST", `/vm/${id}/stop/`, { body: {} });
   }
 
   async getStorageDisks() {
@@ -387,21 +540,27 @@ export class FreeboxClient {
     await this.ensureSession();
     const body: Record<string, string> = { mac };
     if (password) body.password = password;
-    return this.request("POST", "/lan/wol/pub/", body);
+    return this.request("POST", "/lan/wol/pub/", { body });
   }
 
   async getRRDStats(db: string, fields: string[], date_start?: number, date_end?: number, precision?: number) {
     await this.ensureSession();
     return this.request("POST", "/rrd/", {
-      db,
-      fields,
-      ...(date_start && { date_start }),
-      ...(date_end && { date_end }),
-      ...(precision && { precision }),
+      body: {
+        db,
+        fields,
+        ...(date_start && { date_start }),
+        ...(date_end && { date_end }),
+        ...(precision && { precision }),
+      },
     });
   }
 
   isAuthorized(): boolean {
     return !!this.appToken;
+  }
+
+  getPermissions(): Record<string, boolean> {
+    return { ...this.permissions };
   }
 }

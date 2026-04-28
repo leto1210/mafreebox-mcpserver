@@ -98,6 +98,11 @@ const TOOLS = [
       required: ["track_id"],
     },
   },
+  {
+    name: "freebox_reset_authorization",
+    description: "Réinitialise le token d'autorisation local pour forcer un nouvel enregistrement de l'application avec les bons droits.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
 
   // CONNEXION & SYSTÈME
   {
@@ -390,6 +395,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "freebox_check_authorization":
       return safe(() => client.checkAuthorizationStatus(a.track_id as number));
+
+    case "freebox_reset_authorization":
+      return safe(() => client.resetAuthorization());
 
     // CONNEXION & SYSTÈME
     case "freebox_get_connection":

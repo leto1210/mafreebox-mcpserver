@@ -180,17 +180,19 @@ Redémarrez Claude Desktop.
 | `FREEBOX_HOST`       | `mafreebox.freebox.fr`          | Hostname ou IP de la Freebox                         |
 | `FREEBOX_APP_ID`     | `fr.freebox.mcp`                | Identifiant de l'application                         |
 | `FREEBOX_TOKEN_FILE` | `<dist>/../freebox_token.json`  | Chemin absolu du fichier token. En Docker : `/app/data/freebox_token.json` (défini dans l'image) |
+| `FREEBOX_REQUEST_TIMEOUT` | `10000`                    | Timeout des requêtes HTTP vers la Freebox, en millisecondes |
 | `DEBUG`              | _(désactivé)_                   | Mettre à `1` pour activer les logs détaillés sur stderr (config, appels d'outils, requêtes API) |
 
 ---
 
-## Outils MCP disponibles (29 outils)
+## Outils MCP disponibles (30 outils)
 
 ### 🔐 Authentification
 | Outil | Description |
 |-------|-------------|
 | `freebox_authorize` | Lance la demande d'autorisation (LCD Freebox) |
 | `freebox_check_authorization` | Vérifie si l'autorisation a été accordée |
+| `freebox_reset_authorization` | Réinitialise le token local pour relancer un enregistrement propre |
 
 ### 🌐 Connexion & Système
 | Outil | Description |
