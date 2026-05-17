@@ -2,6 +2,92 @@
 
 All notable changes to this project are documented here.
 
+## [1.4.0] - 2026-05-17
+
+### Phase 6 - Quick Wins (12 new tools)
+
+#### FTP Server (2 tools)
+- `freebox_get_ftp_config` - Get FTP server configuration (enabled, port, anonymous access)
+- `freebox_set_ftp_config` - Update FTP server configuration
+
+#### Switch (2 tools)
+- `freebox_get_switch_status` - Get physical switch port states (link, speed, duplex)
+- `freebox_get_switch_port_stats` - Get per-port traffic statistics (bytes, errors)
+
+#### LCD Display (2 tools)
+- `freebox_get_lcd_config` - Get LCD screen configuration (brightness, orientation)
+- `freebox_set_lcd_config` - Update LCD screen configuration
+
+#### Share Links (4 tools)
+- `freebox_list_share_links` - List all public share links
+- `freebox_create_share_link` - Create a public share link for a file/folder
+- `freebox_get_share_link` - Get share link details by token
+- `freebox_delete_share_link` - Delete a share link
+
+#### AirMedia (2 tools)
+- `freebox_get_airmedia_config` - Get AirMedia (AirPlay) configuration
+- `freebox_get_airmedia_receivers` - List AirMedia receivers on the local network
+
+### Phase 7 - High Value Features (15 new tools)
+
+#### VPN Server (6 tools)
+- `freebox_list_vpn_servers` - List VPN servers (OpenVPN, WireGuard, L2TP) with status
+- `freebox_get_vpn_server_config` - Get detailed VPN server configuration
+- `freebox_start_vpn_server` - Start a VPN server
+- `freebox_stop_vpn_server` - Stop a VPN server
+- `freebox_list_vpn_server_users` - List users authorized on a VPN server
+- `freebox_get_vpn_connections` - List active VPN connections
+
+#### VPN Client (2 tools)
+- `freebox_list_vpn_clients` - List VPN client configurations
+- `freebox_get_vpn_client_status` - Get VPN client connection status
+
+#### Parental Profiles (3 tools)
+- `freebox_list_parental_profiles` - List parental control profiles with devices
+- `freebox_get_parental_profile` - Get parental profile details (schedule, filters)
+- `freebox_update_parental_profile` - Enable/disable or configure a parental profile
+
+#### DMZ & Firewall (4 tools)
+- `freebox_get_dmz_config` - Get DMZ configuration (exposed host, enabled state)
+- `freebox_set_dmz_config` - Configure or disable the DMZ
+- `freebox_list_nat_rules` - List NAT/firewall incoming rules
+- `freebox_list_upnp_redirections` - List active UPnP IGD redirections
+
+### Phase 8 - Extended Coverage (13 new tools)
+
+#### TV & PVR (6 tools)
+- `freebox_list_tv_channels` - List all TV channels with UUID and number
+- `freebox_list_tv_bouquets` - List channel bouquets (groups)
+- `freebox_get_epg` - Get TV programme guide for a channel and date
+- `freebox_get_pvr_config` - Get PVR (recorder) configuration
+- `freebox_list_pvr_recordings` - List scheduled recordings
+- `freebox_list_pvr_finished` - List completed recordings
+
+#### Contacts CRUD (4 tools)
+- `freebox_get_contact` - Get contact details by ID
+- `freebox_create_contact` - Create a new phonebook contact
+- `freebox_update_contact` - Update an existing contact
+- `freebox_delete_contact` - Delete a contact
+
+#### WiFi WPS (3 tools)
+- `freebox_get_wifi_wps_sessions` - List WPS sessions/candidates
+- `freebox_start_wifi_wps` - Start a WPS session
+- `freebox_stop_wifi_wps` - Stop the active WPS session
+
+### Improvements
+- Tool count: 49 → 89 (+40 tools across 3 phases)
+- API coverage: ~58% → ~85% of Freebox OS API surface
+- Test suite: 14 → 27 tests (+13)
+- Zero breaking changes
+
+### Dependencies
+- Bumped `@types/node` 25.6 → 25.8
+- Bumped `tsx` 4.21 → 4.22
+- Bumped Dockerfile base image: node 25-alpine → 26-alpine
+- Updated transitive deps: `fast-uri`, `hono`, `ip-address`, `express-rate-limit`
+
+---
+
 ## [1.3.0] - 2026-04-28
 
 ### Phase 4 - High-Value Dashboard Features (18 new tools)
