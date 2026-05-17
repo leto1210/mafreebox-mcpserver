@@ -848,6 +848,84 @@ export class FreeboxClient {
     });
   }
 
+  // ─── VPN Server (Phase 7) ──────────────────────────────────────────────────
+
+  async listVpnServers() {
+    await this.ensureSession();
+    return this.request("GET", "/vpn/server/");
+  }
+
+  async getVpnServerConfig(serverId: string) {
+    await this.ensureSession();
+    return this.request("GET", `/vpn/server/${serverId}/config/`);
+  }
+
+  async setVpnServerActive(serverId: string, active: boolean) {
+    await this.ensureSession();
+    return this.request("PUT", `/vpn/server/${serverId}/`, { body: { active } });
+  }
+
+  async listVpnServerUsers(serverId: string) {
+    await this.ensureSession();
+    return this.request("GET", `/vpn/server/${serverId}/users/`);
+  }
+
+  async getVpnConnections() {
+    await this.ensureSession();
+    return this.request("GET", "/vpn/connection/");
+  }
+
+  // ─── VPN Client (Phase 7) ──────────────────────────────────────────────────
+
+  async listVpnClients() {
+    await this.ensureSession();
+    return this.request("GET", "/vpn/client/");
+  }
+
+  async getVpnClientStatus(clientId: string) {
+    await this.ensureSession();
+    return this.request("GET", `/vpn/client/${clientId}/connection/`);
+  }
+
+  // ─── Parental Profiles (Phase 7) ───────────────────────────────────────────
+
+  async listParentalProfiles() {
+    await this.ensureSession();
+    return this.request("GET", "/parental/profile/");
+  }
+
+  async getParentalProfile(profileId: string) {
+    await this.ensureSession();
+    return this.request("GET", `/parental/profile/${profileId}/`);
+  }
+
+  async updateParentalProfile(profileId: string, config: Record<string, unknown>) {
+    await this.ensureSession();
+    return this.request("PUT", `/parental/profile/${profileId}/`, { body: config });
+  }
+
+  // ─── DMZ / Firewall (Phase 7) ──────────────────────────────────────────────
+
+  async getDmzConfig() {
+    await this.ensureSession();
+    return this.request("GET", "/fw/dmz/");
+  }
+
+  async setDmzConfig(config: { enabled: boolean; ip?: string }) {
+    await this.ensureSession();
+    return this.request("PUT", "/fw/dmz/", { body: config });
+  }
+
+  async listNatRules() {
+    await this.ensureSession();
+    return this.request("GET", "/fw/nat/");
+  }
+
+  async listUpnpRedirections() {
+    await this.ensureSession();
+    return this.request("GET", "/upnpigd/redir/");
+  }
+
   // ─── FTP (Phase 6) ─────────────────────────────────────────────────────────
 
   async getFtpConfig() {

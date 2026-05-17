@@ -546,6 +546,140 @@ const TOOLS = [
       required: ["id"],
     },
   },
+  // VPN SERVER (Phase 7)
+  {
+    name: "freebox_list_vpn_servers",
+    description: "Liste les serveurs VPN configurés sur la Freebox (OpenVPN, WireGuard, L2TP) avec leur état.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_get_vpn_server_config",
+    description: "Retourne la configuration détaillée d'un serveur VPN (certificats, port, protocole).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        server_id: { type: "string", description: "Identifiant du serveur VPN" },
+      },
+      required: ["server_id"],
+    },
+  },
+  {
+    name: "freebox_start_vpn_server",
+    description: "Démarre un serveur VPN.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        server_id: { type: "string", description: "Identifiant du serveur VPN" },
+      },
+      required: ["server_id"],
+    },
+  },
+  {
+    name: "freebox_stop_vpn_server",
+    description: "Arrête un serveur VPN.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        server_id: { type: "string", description: "Identifiant du serveur VPN" },
+      },
+      required: ["server_id"],
+    },
+  },
+  {
+    name: "freebox_list_vpn_server_users",
+    description: "Liste les utilisateurs autorisés à se connecter à un serveur VPN.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        server_id: { type: "string", description: "Identifiant du serveur VPN" },
+      },
+      required: ["server_id"],
+    },
+  },
+  {
+    name: "freebox_get_vpn_connections",
+    description: "Liste les connexions VPN actives (IP, utilisateur, durée, débit).",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+
+  // VPN CLIENT (Phase 7)
+  {
+    name: "freebox_list_vpn_clients",
+    description: "Liste les configurations de client VPN enregistrées sur la Freebox.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_get_vpn_client_status",
+    description: "Retourne l'état de connexion d'un client VPN (connecté, IP assignée, durée).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        client_id: { type: "string", description: "Identifiant du client VPN" },
+      },
+      required: ["client_id"],
+    },
+  },
+
+  // PARENTAL PROFILES (Phase 7)
+  {
+    name: "freebox_list_parental_profiles",
+    description: "Liste les profils de contrôle parental configurés avec leur état et les appareils associés.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_get_parental_profile",
+    description: "Retourne les détails d'un profil de contrôle parental (planification, filtres, appareils).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        profile_id: { type: "string", description: "Identifiant du profil parental" },
+      },
+      required: ["profile_id"],
+    },
+  },
+  {
+    name: "freebox_update_parental_profile",
+    description: "Modifie un profil de contrôle parental (activer/désactiver, planification horaire).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        profile_id: { type: "string", description: "Identifiant du profil parental" },
+        enabled: { type: "boolean", description: "Activer/désactiver le profil" },
+        default_filter: { type: "string", description: "Filtre par défaut (allow/deny)" },
+      },
+      required: ["profile_id"],
+    },
+  },
+
+  // DMZ / FIREWALL (Phase 7)
+  {
+    name: "freebox_get_dmz_config",
+    description: "Retourne la configuration DMZ (hôte exposé sur internet, activé/désactivé).",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_set_dmz_config",
+    description: "Configure ou désactive la DMZ (expose un appareil interne directement sur internet).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        enabled: { type: "boolean", description: "Activer/désactiver la DMZ" },
+        ip: { type: "string", description: "Adresse IP locale de l'hôte DMZ (ex: 192.168.1.100)" },
+      },
+      required: ["enabled"],
+    },
+  },
+  {
+    name: "freebox_list_nat_rules",
+    description: "Liste les règles NAT (incoming) du pare-feu Freebox.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_list_upnp_redirections",
+    description: "Liste les redirections UPnP IGD actives créées automatiquement par des applications.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+
   // FTP (Phase 6)
   {
     name: "freebox_get_ftp_config",
@@ -942,6 +1076,62 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return safe(() =>
         client.setDownloadFilePriority(a.id as number, a.file_id as number, a.priority as string)
       );
+
+    // VPN SERVER (Phase 7)
+    case "freebox_list_vpn_servers":
+      return safe(() => client.listVpnServers());
+
+    case "freebox_get_vpn_server_config":
+      return safe(() => client.getVpnServerConfig(a.server_id as string));
+
+    case "freebox_start_vpn_server":
+      return safe(() => client.setVpnServerActive(a.server_id as string, true));
+
+    case "freebox_stop_vpn_server":
+      return safe(() => client.setVpnServerActive(a.server_id as string, false));
+
+    case "freebox_list_vpn_server_users":
+      return safe(() => client.listVpnServerUsers(a.server_id as string));
+
+    case "freebox_get_vpn_connections":
+      return safe(() => client.getVpnConnections());
+
+    // VPN CLIENT (Phase 7)
+    case "freebox_list_vpn_clients":
+      return safe(() => client.listVpnClients());
+
+    case "freebox_get_vpn_client_status":
+      return safe(() => client.getVpnClientStatus(a.client_id as string));
+
+    // PARENTAL PROFILES (Phase 7)
+    case "freebox_list_parental_profiles":
+      return safe(() => client.listParentalProfiles());
+
+    case "freebox_get_parental_profile":
+      return safe(() => client.getParentalProfile(a.profile_id as string));
+
+    case "freebox_update_parental_profile": {
+      const config: Record<string, unknown> = {};
+      if (a.enabled !== undefined) config.enabled = a.enabled;
+      if (a.default_filter !== undefined) config.default_filter = a.default_filter;
+      return safe(() => client.updateParentalProfile(a.profile_id as string, config));
+    }
+
+    // DMZ / FIREWALL (Phase 7)
+    case "freebox_get_dmz_config":
+      return safe(() => client.getDmzConfig());
+
+    case "freebox_set_dmz_config": {
+      const config: { enabled: boolean; ip?: string } = { enabled: a.enabled as boolean };
+      if (a.ip) config.ip = a.ip as string;
+      return safe(() => client.setDmzConfig(config));
+    }
+
+    case "freebox_list_nat_rules":
+      return safe(() => client.listNatRules());
+
+    case "freebox_list_upnp_redirections":
+      return safe(() => client.listUpnpRedirections());
 
     // FTP (Phase 6)
     case "freebox_get_ftp_config":

@@ -632,6 +632,208 @@ test("Download stats and details: stats, config, trackers, peers, files", async 
   }
 });
 
+// ─── Phase 7 Tests ──────────────────────────────────────────────────────
+
+test("VPN server: list, start, stop, users, connections", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-7a", track_id: 20 } },
+    { success: true, result: { logged_in: false, challenge: "ch7a" } },
+    { success: true, result: { session_token: "sess7a", permissions: { settings: true } } },
+    { success: true, result: [{ id: "openvpn", type: "openvpn", active: false }] },
+    { success: true, result: { id: "openvpn", active: true } },
+    { success: true, result: { id: "openvpn", active: false } },
+    { success: true, result: [{ login: "user1" }] },
+    { success: true, result: [] },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const servers = await client.listVpnServers();
+    assert.ok(Array.isArray(servers));
+
+    const started = await client.setVpnServerActive("openvpn", true);
+    assert.ok(started);
+
+    const stopped = await client.setVpnServerActive("openvpn", false);
+    assert.ok(stopped);
+
+    const users = await client.listVpnServerUsers("openvpn");
+    assert.ok(Array.isArray(users));
+
+    const conns = await client.getVpnConnections();
+    assert.ok(Array.isArray(conns));
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("VPN client: list and connection status", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-7b", track_id: 21 } },
+    { success: true, result: { logged_in: false, challenge: "ch7b" } },
+    { success: true, result: { session_token: "sess7b", permissions: { settings: true } } },
+    { success: true, result: [{ id: "client1", type: "wireguard" }] },
+    { success: true, result: { state: "up", local_address: "10.0.0.2" } },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const clients = await client.listVpnClients();
+    assert.ok(Array.isArray(clients));
+
+    const status = await client.getVpnClientStatus("client1");
+    assert.ok(status);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("Parental profiles: list, get, update", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-7c", track_id: 22 } },
+    { success: true, result: { logged_in: false, challenge: "ch7c" } },
+    { success: true, result: { session_token: "sess7c", permissions: { parental: true } } },
+    { success: true, result: [{ id: "profile1", name: "Enfant" }] },
+    { success: true, result: { id: "profile1", name: "Enfant", enabled: true } },
+    { success: true, result: { id: "profile1", enabled: false } },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const profiles = await client.listParentalProfiles();
+    assert.ok(Array.isArray(profiles));
+
+    const profile = await client.getParentalProfile("profile1");
+    assert.ok(profile);
+
+    const updated = await client.updateParentalProfile("profile1", { enabled: false });
+    assert.ok(updated);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("DMZ and firewall: get/set DMZ, NAT rules, UPnP redirections", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-7d", track_id: 23 } },
+    { success: true, result: { logged_in: false, challenge: "ch7d" } },
+    { success: true, result: { session_token: "sess7d", permissions: { settings: true } } },
+    { success: true, result: { enabled: false, ip: "" } },
+    { success: true, result: { enabled: true, ip: "192.168.1.100" } },
+    { success: true, result: [{ id: 1, action: "accept" }] },
+    { success: true, result: [{ src_port: 8080, dst_ip: "192.168.1.50" }] },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const dmz = await client.getDmzConfig();
+    assert.ok(dmz);
+
+    const dmzSet = await client.setDmzConfig({ enabled: true, ip: "192.168.1.100" });
+    assert.ok(dmzSet);
+
+    const nat = await client.listNatRules();
+    assert.ok(Array.isArray(nat));
+
+    const upnp = await client.listUpnpRedirections();
+    assert.ok(Array.isArray(upnp));
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 // ─── Phase 6 Tests ──────────────────────────────────────────────────────
 
 test("FTP config: get and update", async () => {
