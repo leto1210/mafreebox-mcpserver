@@ -546,6 +546,115 @@ const TOOLS = [
       required: ["id"],
     },
   },
+  // TV / PVR (Phase 8)
+  {
+    name: "freebox_list_tv_channels",
+    description: "Liste toutes les chaînes TV disponibles sur la Freebox avec leur numéro, nom et UUID.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_list_tv_bouquets",
+    description: "Liste les bouquets (groupes de chaînes) disponibles sur la Freebox.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_get_epg",
+    description: "Retourne le programme TV (EPG) d'une chaîne pour une date donnée.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        channel_uuid: { type: "string", description: "UUID de la chaîne TV" },
+        date: { type: "number", description: "Timestamp Unix du jour (optionnel, défaut: aujourd'hui)" },
+      },
+      required: ["channel_uuid"],
+    },
+  },
+  {
+    name: "freebox_get_pvr_config",
+    description: "Retourne la configuration du PVR (enregistreur) de la Freebox.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_list_pvr_recordings",
+    description: "Liste les enregistrements TV programmés (à venir).",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_list_pvr_finished",
+    description: "Liste les enregistrements TV terminés avec leur durée et fichier.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+
+  // CONTACTS CRUD (Phase 8)
+  {
+    name: "freebox_get_contact",
+    description: "Retourne les détails d'un contact du répertoire par son identifiant.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Identifiant du contact" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "freebox_create_contact",
+    description: "Crée un nouveau contact dans le répertoire téléphonique de la Freebox.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        display_name: { type: "string", description: "Nom affiché" },
+        first_name: { type: "string", description: "Prénom" },
+        last_name: { type: "string", description: "Nom de famille" },
+        phone_number: { type: "string", description: "Numéro de téléphone principal" },
+      },
+      required: ["display_name"],
+    },
+  },
+  {
+    name: "freebox_update_contact",
+    description: "Modifie un contact existant dans le répertoire téléphonique.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Identifiant du contact" },
+        display_name: { type: "string", description: "Nom affiché (optionnel)" },
+        first_name: { type: "string", description: "Prénom (optionnel)" },
+        last_name: { type: "string", description: "Nom de famille (optionnel)" },
+        phone_number: { type: "string", description: "Numéro de téléphone (optionnel)" },
+      },
+      required: ["id"],
+    },
+  },
+  {
+    name: "freebox_delete_contact",
+    description: "Supprime un contact du répertoire téléphonique.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "number", description: "Identifiant du contact" },
+      },
+      required: ["id"],
+    },
+  },
+
+  // WIFI WPS (Phase 8)
+  {
+    name: "freebox_get_wifi_wps_sessions",
+    description: "Retourne les sessions WPS en cours ou candidates.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_start_wifi_wps",
+    description: "Démarre une session WPS pour connecter un appareil sans saisir le mot de passe Wi-Fi.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_stop_wifi_wps",
+    description: "Arrête la session WPS en cours.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+
   // VPN SERVER (Phase 7)
   {
     name: "freebox_list_vpn_servers",
@@ -1076,6 +1185,59 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return safe(() =>
         client.setDownloadFilePriority(a.id as number, a.file_id as number, a.priority as string)
       );
+
+    // TV / PVR (Phase 8)
+    case "freebox_list_tv_channels":
+      return safe(() => client.listTvChannels());
+
+    case "freebox_list_tv_bouquets":
+      return safe(() => client.listTvBouquets());
+
+    case "freebox_get_epg":
+      return safe(() => client.getEpg(a.channel_uuid as string, a.date as number | undefined));
+
+    case "freebox_get_pvr_config":
+      return safe(() => client.getPvrConfig());
+
+    case "freebox_list_pvr_recordings":
+      return safe(() => client.listPvrRecordings());
+
+    case "freebox_list_pvr_finished":
+      return safe(() => client.listPvrFinishedRecordings());
+
+    // CONTACTS CRUD (Phase 8)
+    case "freebox_get_contact":
+      return safe(() => client.getContact(a.id as number));
+
+    case "freebox_create_contact": {
+      const contact: Record<string, unknown> = { display_name: a.display_name };
+      if (a.first_name) contact.first_name = a.first_name;
+      if (a.last_name) contact.last_name = a.last_name;
+      if (a.phone_number) contact.phone_number = a.phone_number;
+      return safe(() => client.createContact(contact));
+    }
+
+    case "freebox_update_contact": {
+      const contact: Record<string, unknown> = {};
+      if (a.display_name) contact.display_name = a.display_name;
+      if (a.first_name) contact.first_name = a.first_name;
+      if (a.last_name) contact.last_name = a.last_name;
+      if (a.phone_number) contact.phone_number = a.phone_number;
+      return safe(() => client.updateContact(a.id as number, contact));
+    }
+
+    case "freebox_delete_contact":
+      return safe(() => client.deleteContact(a.id as number));
+
+    // WIFI WPS (Phase 8)
+    case "freebox_get_wifi_wps_sessions":
+      return safe(() => client.getWifiWpsSessions());
+
+    case "freebox_start_wifi_wps":
+      return safe(() => client.startWifiWps());
+
+    case "freebox_stop_wifi_wps":
+      return safe(() => client.stopWifiWps());
 
     // VPN SERVER (Phase 7)
     case "freebox_list_vpn_servers":

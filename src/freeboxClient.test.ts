@@ -632,6 +632,200 @@ test("Download stats and details: stats, config, trackers, peers, files", async 
   }
 });
 
+// ─── Phase 8 Tests ──────────────────────────────────────────────────────
+
+test("TV channels and bouquets", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-8a", track_id: 30 } },
+    { success: true, result: { logged_in: false, challenge: "ch8a" } },
+    { success: true, result: { session_token: "sess8a", permissions: { pvr: true } } },
+    { success: true, result: { "uuid-1": { name: "TF1", number: 1 } } },
+    { success: true, result: [{ id: "bouquet-1", name: "TNT" }] },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const channels = await client.listTvChannels();
+    assert.ok(channels);
+
+    const bouquets = await client.listTvBouquets();
+    assert.ok(Array.isArray(bouquets));
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("PVR: config, programmed and finished recordings", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-8b", track_id: 31 } },
+    { success: true, result: { logged_in: false, challenge: "ch8b" } },
+    { success: true, result: { session_token: "sess8b", permissions: { pvr: true } } },
+    { success: true, result: { path: "/Disque dur/Enregistrements" } },
+    { success: true, result: [{ id: 1, name: "Journal 20h" }] },
+    { success: true, result: [{ id: 2, name: "Match de foot" }] },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const config = await client.getPvrConfig();
+    assert.ok(config);
+
+    const programmed = await client.listPvrRecordings();
+    assert.ok(Array.isArray(programmed));
+
+    const finished = await client.listPvrFinishedRecordings();
+    assert.ok(Array.isArray(finished));
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("Contacts CRUD: get, create, update, delete", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-8c", track_id: 32 } },
+    { success: true, result: { logged_in: false, challenge: "ch8c" } },
+    { success: true, result: { session_token: "sess8c", permissions: { contacts: true } } },
+    { success: true, result: { id: 1, display_name: "Alice" } },
+    { success: true, result: { id: 2, display_name: "Bob" } },
+    { success: true, result: { id: 2, display_name: "Bob Martin" } },
+    { success: true, result: {} },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const contact = await client.getContact(1);
+    assert.ok(contact);
+
+    const created = await client.createContact({ display_name: "Bob" });
+    assert.ok(created);
+
+    const updated = await client.updateContact(2, { display_name: "Bob Martin" });
+    assert.ok(updated);
+
+    const deleted = await client.deleteContact(2);
+    assert.ok(deleted !== undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("WiFi WPS: sessions, start, stop", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-8d", track_id: 33 } },
+    { success: true, result: { logged_in: false, challenge: "ch8d" } },
+    { success: true, result: { session_token: "sess8d", permissions: { settings: true } } },
+    { success: true, result: [] },
+    { success: true, result: {} },
+    { success: true, result: {} },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const sessions = await client.getWifiWpsSessions();
+    assert.ok(Array.isArray(sessions));
+
+    const started = await client.startWifiWps();
+    assert.ok(started !== undefined);
+
+    const stopped = await client.stopWifiWps();
+    assert.ok(stopped !== undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 // ─── Phase 7 Tests ──────────────────────────────────────────────────────
 
 test("VPN server: list, start, stop, users, connections", async () => {

@@ -848,6 +848,80 @@ export class FreeboxClient {
     });
   }
 
+  // ─── TV / PVR (Phase 8) ────────────────────────────────────────────────────
+
+  async listTvChannels() {
+    await this.ensureSession();
+    return this.request("GET", "/tv/channels/");
+  }
+
+  async listTvBouquets() {
+    await this.ensureSession();
+    return this.request("GET", "/tv/bouquets/");
+  }
+
+  async getEpg(channelUuid: string, date?: number) {
+    await this.ensureSession();
+    const path = date
+      ? `/tv/epg/by_channel/?channel_uuid=${channelUuid}&date=${date}`
+      : `/tv/epg/by_channel/?channel_uuid=${channelUuid}`;
+    return this.request("GET", path);
+  }
+
+  async getPvrConfig() {
+    await this.ensureSession();
+    return this.request("GET", "/pvr/config/");
+  }
+
+  async listPvrRecordings() {
+    await this.ensureSession();
+    return this.request("GET", "/pvr/programmed/");
+  }
+
+  async listPvrFinishedRecordings() {
+    await this.ensureSession();
+    return this.request("GET", "/pvr/finished/");
+  }
+
+  // ─── Contacts CRUD (Phase 8) ───────────────────────────────────────────────
+
+  async getContact(contactId: number) {
+    await this.ensureSession();
+    return this.request("GET", `/contact/${contactId}/`);
+  }
+
+  async createContact(contact: Record<string, unknown>) {
+    await this.ensureSession();
+    return this.request("POST", "/contact/", { body: contact });
+  }
+
+  async updateContact(contactId: number, contact: Record<string, unknown>) {
+    await this.ensureSession();
+    return this.request("PUT", `/contact/${contactId}/`, { body: contact });
+  }
+
+  async deleteContact(contactId: number) {
+    await this.ensureSession();
+    return this.request("DELETE", `/contact/${contactId}/`);
+  }
+
+  // ─── WiFi WPS (Phase 8) ────────────────────────────────────────────────────
+
+  async getWifiWpsSessions() {
+    await this.ensureSession();
+    return this.request("GET", "/wifi/wps/candidates/");
+  }
+
+  async startWifiWps() {
+    await this.ensureSession();
+    return this.request("POST", "/wifi/wps/start/", { body: {} });
+  }
+
+  async stopWifiWps() {
+    await this.ensureSession();
+    return this.request("POST", "/wifi/wps/stop/", { body: {} });
+  }
+
   // ─── VPN Server (Phase 7) ──────────────────────────────────────────────────
 
   async listVpnServers() {
