@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Build**: `npm run build` — compiles TypeScript (`src/`) to `dist/`
 - **Dev**: `npm run dev` — tsx watch mode (auto-recompile on save)
 - **Start**: `npm start` — runs `node dist/index.js` (production)
-- **Test**: `npm test` — runs build + node test runner (14/14 tests passing)
+- **Test**: `npm test` — runs build + node test runner (27/27 tests passing)
 - No linting configured (no ESLint/Prettier)
 
 ## Architecture
@@ -18,27 +18,37 @@ MCP (Model Context Protocol) server that bridges Claude Desktop to a **Freebox**
 Claude Desktop → (MCP stdio) → Node.js process → (HTTP) → Freebox OS API v8+
 ```
 
-### Source Structure (v1.3.0)
-- **`src/index.ts`** — MCP server entry point: defines 49 tools with JSON schemas, handles `ListTools`/`CallTool` requests, delegates all logic to `FreeboxClient`. All tool responses use a `safe()` error wrapper.
-- **`src/freeboxClient.ts`** — Freebox API client: auth flow, session management, model detection, capability caching, 40+ endpoint methods. `ensureSession()` is called before every API request.
-- **`src/freeboxClient.test.ts`** — Comprehensive test suite (14 tests): auth flow, session retry, timeout handling, JSON safety, model detection, caching, Phase 4 features.
+### Source Structure (v1.4.0)
+- **`src/index.ts`** — MCP server entry point: defines 89 tools with JSON schemas, handles `ListTools`/`CallTool` requests, delegates all logic to `FreeboxClient`. All tool responses use a `safe()` error wrapper.
+- **`src/freeboxClient.ts`** — Freebox API client: auth flow, session management, model detection, capability caching, 70+ endpoint methods. `ensureSession()` is called before every API request.
+- **`src/freeboxClient.test.ts`** — Comprehensive test suite (27 tests): auth flow, session retry, timeout handling, JSON safety, model detection, caching, Phase 4-8 features.
 
-### Tool Coverage (49 total)
+### Tool Coverage (89 total)
 
 | Category | Tools | Phase | Features |
 |----------|-------|-------|----------|
 | Auth | 3 | P1-2 | authorize, check, reset |
 | System | 5 | P1-3 | connection, system, capabilities, reboot, stats |
 | Network | 2 | P1 | LAN hosts, WoL |
-| WiFi | 10 | P1,P4 | get config, toggle, networks, guest networks, APs, stations, planning |
+| WiFi | 13 | P1,P4,P8 | get config, toggle, networks, guest networks, APs, stations, planning, WPS |
 | DHCP | 6 | P1,P4 | config, dynamic, static leases (CRUD) |
 | Ports | 3 | P1 | forwarding (get, add, delete) |
-| Parental | 1 | P1 | get config |
+| Parental | 4 | P1,P7 | get config, list/get/update profiles |
 | VMs | 3 | P1,P3 | get, start, stop (Ultra/Delta only) |
 | Calls | 2 | P1 | log, missed |
+| Contacts | 5 | P1,P8 | list, get, create, update, delete |
 | Storage | 2 | P1 | storage, freeplug |
-| Downloads | 12 | P1,P4 | get, add, pause, resume, delete, delete all, stats, config, trackers, peers, files, priority |
+| Downloads | 12 | P1,P4 | get, add, pause, resume, delete, stats, config, trackers, peers, files, priority |
 | File Manager | 1 | P1 | list directory |
+| FTP | 2 | P6 | get/set config |
+| Switch | 2 | P6 | port status, per-port stats |
+| LCD | 2 | P6 | get/set config |
+| Share Links | 4 | P6 | list, create, get, delete |
+| AirMedia | 2 | P6 | config, receivers |
+| VPN Server | 6 | P7 | list, config, start, stop, users, connections |
+| VPN Client | 2 | P7 | list, connection status |
+| DMZ/Firewall | 4 | P7 | get/set DMZ, NAT rules, UPnP redirections |
+| TV/PVR | 6 | P8 | channels, bouquets, EPG, PVR config, recordings |
 
 ### Phases Overview
 
@@ -69,6 +79,24 @@ Claude Desktop → (MCP stdio) → Node.js process → (HTTP) → Freebox OS API
 - 14/14 tests passing (9 existing + 5 Phase 4)
 - DHCP, WiFi guest, WiFi advanced, Download stats all tested
 
+**Phase 6 (v1.4.0)**: Quick wins — backported from FreeboxOS-Ultra-Dashboard analysis
+- FTP server config (get/set): 2 tools
+- Switch port status + per-port stats: 2 tools
+- LCD display config (get/set): 2 tools
+- Share links CRUD: 4 tools
+- AirMedia config + receivers: 2 tools
+
+**Phase 7 (v1.4.0)**: High-value features
+- VPN Server (list, config, start, stop, users, connections): 6 tools
+- VPN Client (list, status): 2 tools
+- Parental Profiles (list, get, update): 3 tools
+- DMZ/Firewall (get/set DMZ, NAT rules, UPnP): 4 tools
+
+**Phase 8 (v1.4.0)**: Extended coverage
+- TV/PVR (channels, bouquets, EPG, config, recordings): 6 tools
+- Contacts CRUD (get, create, update, delete): 4 tools
+- WiFi WPS (sessions, start, stop): 3 tools
+
 ### Auth Flow (HMAC-SHA1)
 1. `freebox_authorize` → POST to Freebox, user presses `>` on LCD panel → stores `app_token` in token file
 2. `freebox_check_authorization` → poll until approved
@@ -86,7 +114,7 @@ Token file location: `$FREEBOX_TOKEN_FILE` (default: `dist/../freebox_token.json
 | `DEBUG` | unset | Set to `1` for verbose stderr logs |
 
 ### Docker
-Multi-stage Alpine build. Token persisted in volume `/app/data` (owned by `node` user). `--ignore-scripts` on all `npm ci` calls. Base image: Node 25-Alpine.
+Multi-stage Alpine build. Token persisted in volume `/app/data` (owned by `node` user). `--ignore-scripts` on all `npm ci` calls. Base image: Node 26-Alpine.
 
 ### MCP Protocol Note
 Communication is over **stdio**. Claude Desktop spawns the process as a child. All debug logs must go to **stderr** only — stdout is reserved for the MCP protocol.
@@ -126,17 +154,17 @@ All HTTP requests flow through `performRequest()`:
 - Session lifecycle fully tested (auth, token reuse, retry)
 - Model detection and caching verified
 - Phase features tested before merging
-- 14 tests cover core flows + all Phase 4 features
+- 27 tests cover core flows + all Phase 4-8 features
 
 ---
 
 ## Deployment
 
-**Version**: v1.3.0  
+**Version**: v1.4.0  
 **Status**: Production-ready, zero breaking changes  
-**Stability**: All 14 tests passing, comprehensive error handling, auto-retry resilience
+**Stability**: All 27 tests passing, comprehensive error handling, auto-retry resilience
 
-Previous releases: v1.2.0 (model detection), v1.1.2 (hardening)
+Previous releases: v1.3.0 (Phase 4-5), v1.2.0 (model detection), v1.1.2 (hardening)
 
 ---
 
