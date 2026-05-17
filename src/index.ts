@@ -546,6 +546,119 @@ const TOOLS = [
       required: ["id"],
     },
   },
+  // FTP (Phase 6)
+  {
+    name: "freebox_get_ftp_config",
+    description: "Retourne la configuration du serveur FTP de la Freebox (activé, accès anonyme, port).",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_set_ftp_config",
+    description: "Modifie la configuration du serveur FTP de la Freebox.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        enabled: { type: "boolean", description: "Activer/désactiver le serveur FTP" },
+        allow_anonymous: { type: "boolean", description: "Autoriser l'accès anonyme" },
+        allow_anonymous_write: { type: "boolean", description: "Autoriser l'écriture anonyme" },
+        port_ctrl: { type: "number", description: "Port de contrôle FTP" },
+        remote_access: { type: "boolean", description: "Autoriser l'accès depuis internet" },
+      },
+      required: [],
+    },
+  },
+
+  // SWITCH (Phase 6)
+  {
+    name: "freebox_get_switch_status",
+    description: "Retourne l'état des ports physiques du switch intégré à la Freebox (débit, duplex, lien).",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_get_switch_port_stats",
+    description: "Retourne les statistiques de trafic d'un port physique du switch (octets reçus/envoyés, erreurs).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        port_id: { type: "number", description: "Numéro du port (1-4)" },
+      },
+      required: ["port_id"],
+    },
+  },
+
+  // LCD (Phase 6)
+  {
+    name: "freebox_get_lcd_config",
+    description: "Retourne la configuration de l'écran LCD de la Freebox (luminosité, orientation, mode).",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_set_lcd_config",
+    description: "Modifie la configuration de l'écran LCD de la Freebox.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        brightness: { type: "number", description: "Luminosité (0-100)" },
+        orientation: { type: "number", description: "Orientation en degrés (0, 90, 180, 270)" },
+        mode: { type: "string", description: "Mode d'affichage" },
+      },
+      required: [],
+    },
+  },
+
+  // SHARE LINKS (Phase 6)
+  {
+    name: "freebox_list_share_links",
+    description: "Liste les liens de partage publics créés pour des fichiers/dossiers de la Freebox.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_create_share_link",
+    description: "Crée un lien de partage public pour un fichier ou dossier de la Freebox.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Chemin absolu du fichier/dossier à partager (ex: /Disque dur/Photos)" },
+        expire: { type: "number", description: "Timestamp Unix d'expiration (optionnel, 0 = jamais)" },
+      },
+      required: ["path"],
+    },
+  },
+  {
+    name: "freebox_get_share_link",
+    description: "Retourne les informations d'un lien de partage par son token.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        token: { type: "string", description: "Token du lien de partage" },
+      },
+      required: ["token"],
+    },
+  },
+  {
+    name: "freebox_delete_share_link",
+    description: "Supprime un lien de partage public.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        token: { type: "string", description: "Token du lien de partage à supprimer" },
+      },
+      required: ["token"],
+    },
+  },
+
+  // AIRMEDIA (Phase 6)
+  {
+    name: "freebox_get_airmedia_config",
+    description: "Retourne la configuration AirMedia (AirPlay) de la Freebox (activé, mot de passe).",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "freebox_get_airmedia_receivers",
+    description: "Liste les récepteurs AirMedia disponibles sur le réseau local.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+
   {
     name: "freebox_set_download_file_priority",
     description: "Définit la priorité de téléchargement d'un fichier dans un torrent.",
@@ -829,6 +942,59 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return safe(() =>
         client.setDownloadFilePriority(a.id as number, a.file_id as number, a.priority as string)
       );
+
+    // FTP (Phase 6)
+    case "freebox_get_ftp_config":
+      return safe(() => client.getFtpConfig());
+
+    case "freebox_set_ftp_config": {
+      const config: Record<string, unknown> = {};
+      if (a.enabled !== undefined) config.enabled = a.enabled;
+      if (a.allow_anonymous !== undefined) config.allow_anonymous = a.allow_anonymous;
+      if (a.allow_anonymous_write !== undefined) config.allow_anonymous_write = a.allow_anonymous_write;
+      if (a.port_ctrl !== undefined) config.port_ctrl = a.port_ctrl;
+      if (a.remote_access !== undefined) config.remote_access = a.remote_access;
+      return safe(() => client.setFtpConfig(config));
+    }
+
+    // SWITCH (Phase 6)
+    case "freebox_get_switch_status":
+      return safe(() => client.getSwitchStatus());
+
+    case "freebox_get_switch_port_stats":
+      return safe(() => client.getSwitchPortStats(a.port_id as number));
+
+    // LCD (Phase 6)
+    case "freebox_get_lcd_config":
+      return safe(() => client.getLcdConfig());
+
+    case "freebox_set_lcd_config": {
+      const config: Record<string, unknown> = {};
+      if (a.brightness !== undefined) config.brightness = a.brightness;
+      if (a.orientation !== undefined) config.orientation = a.orientation;
+      if (a.mode !== undefined) config.mode = a.mode;
+      return safe(() => client.setLcdConfig(config));
+    }
+
+    // SHARE LINKS (Phase 6)
+    case "freebox_list_share_links":
+      return safe(() => client.listShareLinks());
+
+    case "freebox_create_share_link":
+      return safe(() => client.createShareLink({ path: a.path as string, expire: a.expire as number | undefined }));
+
+    case "freebox_get_share_link":
+      return safe(() => client.getShareLink(a.token as string));
+
+    case "freebox_delete_share_link":
+      return safe(() => client.deleteShareLink(a.token as string));
+
+    // AIRMEDIA (Phase 6)
+    case "freebox_get_airmedia_config":
+      return safe(() => client.getAirmediaConfig());
+
+    case "freebox_get_airmedia_receivers":
+      return safe(() => client.getAirmediaReceivers());
 
     default:
       return err(`Outil inconnu: ${name}`);

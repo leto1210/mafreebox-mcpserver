@@ -632,6 +632,237 @@ test("Download stats and details: stats, config, trackers, peers, files", async 
   }
 });
 
+// ─── Phase 6 Tests ──────────────────────────────────────────────────────
+
+test("FTP config: get and update", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-6a", track_id: 10 } },
+    { success: true, result: { logged_in: false, challenge: "ch6a" } },
+    { success: true, result: { session_token: "sess6a", permissions: { settings: true } } },
+    { success: true, result: { enabled: true, allow_anonymous: false, port_ctrl: 21 } },
+    { success: true, result: { enabled: false } },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const config = await client.getFtpConfig();
+    assert.ok(config);
+    assert.equal((config as { enabled: boolean }).enabled, true);
+
+    const updated = await client.setFtpConfig({ enabled: false });
+    assert.ok(updated);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("Switch: status and port stats", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-6b", track_id: 11 } },
+    { success: true, result: { logged_in: false, challenge: "ch6b" } },
+    { success: true, result: { session_token: "sess6b", permissions: { settings: true } } },
+    { success: true, result: [{ id: 1, link: true, speed: "1000fd" }, { id: 2, link: false }] },
+    { success: true, result: { rx_good_octets: 123456, tx_octets: 789012 } },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const status = await client.getSwitchStatus();
+    assert.ok(Array.isArray(status));
+
+    const stats = await client.getSwitchPortStats(1);
+    assert.ok(stats);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("LCD config: get and update", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-6c", track_id: 12 } },
+    { success: true, result: { logged_in: false, challenge: "ch6c" } },
+    { success: true, result: { session_token: "sess6c", permissions: { settings: true } } },
+    { success: true, result: { brightness: 50, orientation: 0 } },
+    { success: true, result: { brightness: 80 } },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const config = await client.getLcdConfig();
+    assert.ok(config);
+
+    const updated = await client.setLcdConfig({ brightness: 80 });
+    assert.ok(updated);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("Share links: list, create, get, delete", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-6d", track_id: 13 } },
+    { success: true, result: { logged_in: false, challenge: "ch6d" } },
+    { success: true, result: { session_token: "sess6d", permissions: { explorer: true } } },
+    { success: true, result: [{ token: "abc123", path: "/Disque dur/Photos" }] },
+    { success: true, result: { token: "def456", path: "/Disque dur/Films", expire: 0 } },
+    { success: true, result: { token: "def456", path: "/Disque dur/Films" } },
+    { success: true, result: {} },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const links = await client.listShareLinks();
+    assert.ok(Array.isArray(links));
+
+    const created = await client.createShareLink({ path: "/Disque dur/Films" });
+    assert.ok(created);
+
+    const link = await client.getShareLink("def456");
+    assert.ok(link);
+
+    const deleted = await client.deleteShareLink("def456");
+    assert.ok(deleted !== undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("AirMedia: config and receivers", async () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
+  const tokenFile = join(tempDir, "token.json");
+  process.env.FREEBOX_TOKEN_FILE = tokenFile;
+  const originalFetch = globalThis.fetch;
+
+  const responses = [
+    { api_version: "8.0" },
+    { success: true, result: { app_token: "token-6e", track_id: 14 } },
+    { success: true, result: { logged_in: false, challenge: "ch6e" } },
+    { success: true, result: { session_token: "sess6e", permissions: { settings: true } } },
+    { success: true, result: { enabled: true, password: "" } },
+    { success: true, result: [{ name: "Freebox Player", type: "video" }] },
+  ];
+
+  globalThis.fetch = (async () => {
+    const payload = responses.shift();
+    if (!payload) throw new Error("Unexpected fetch call");
+    return createJsonResponse(payload);
+  }) as typeof fetch;
+
+  try {
+    const client = new FreeboxClient({
+      host: "mafreebox.freebox.fr",
+      appId: "fr.freebox.mcp",
+      appName: "Freebox MCP",
+      appVersion: "1.4.0",
+      deviceName: "Claude AI",
+    });
+
+    await client.startAuthorization();
+
+    const config = await client.getAirmediaConfig();
+    assert.ok(config);
+
+    const receivers = await client.getAirmediaReceivers();
+    assert.ok(Array.isArray(receivers));
+  } finally {
+    globalThis.fetch = originalFetch;
+    delete process.env.FREEBOX_TOKEN_FILE;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("Download file priority: set priority for torrent file", async () => {
   const tempDir = mkdtempSync(join(tmpdir(), "freebox-mcp-"));
   const tokenFile = join(tempDir, "token.json");

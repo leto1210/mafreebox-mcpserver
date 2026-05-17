@@ -848,6 +848,76 @@ export class FreeboxClient {
     });
   }
 
+  // ─── FTP (Phase 6) ─────────────────────────────────────────────────────────
+
+  async getFtpConfig() {
+    await this.ensureSession();
+    return this.request("GET", "/ftp/config/");
+  }
+
+  async setFtpConfig(config: Record<string, unknown>) {
+    await this.ensureSession();
+    return this.request("PUT", "/ftp/config/", { body: config });
+  }
+
+  // ─── Switch (Phase 6) ──────────────────────────────────────────────────────
+
+  async getSwitchStatus() {
+    await this.ensureSession();
+    return this.request("GET", "/switch/status/");
+  }
+
+  async getSwitchPortStats(portId: number) {
+    await this.ensureSession();
+    return this.request("GET", `/switch/port/${portId}/stats/`);
+  }
+
+  // ─── LCD (Phase 6) ─────────────────────────────────────────────────────────
+
+  async getLcdConfig() {
+    await this.ensureSession();
+    return this.request("GET", "/lcd/config/");
+  }
+
+  async setLcdConfig(config: Record<string, unknown>) {
+    await this.ensureSession();
+    return this.request("PUT", "/lcd/config/", { body: config });
+  }
+
+  // ─── Share Links (Phase 6) ─────────────────────────────────────────────────
+
+  async listShareLinks() {
+    await this.ensureSession();
+    return this.request("GET", "/share_link/");
+  }
+
+  async createShareLink(params: { path: string; expire?: number }) {
+    await this.ensureSession();
+    return this.request("POST", "/share_link/", { body: params });
+  }
+
+  async getShareLink(token: string) {
+    await this.ensureSession();
+    return this.request("GET", `/share_link/${token}/`);
+  }
+
+  async deleteShareLink(token: string) {
+    await this.ensureSession();
+    return this.request("DELETE", `/share_link/${token}/`);
+  }
+
+  // ─── AirMedia (Phase 6) ────────────────────────────────────────────────────
+
+  async getAirmediaConfig() {
+    await this.ensureSession();
+    return this.request("GET", "/airmedia/config/");
+  }
+
+  async getAirmediaReceivers() {
+    await this.ensureSession();
+    return this.request("GET", "/airmedia/receivers/");
+  }
+
   isAuthorized(): boolean {
     return !!this.appToken;
   }
